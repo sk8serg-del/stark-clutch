@@ -1,770 +1,732 @@
 <!DOCTYPE html>
-<!-- saved from url=(0071)https://industrialvision.github.io/ble_clutch_controller_web_interface/ -->
-<html lang="en"><div id="in-page-channel-node-id" data-channel-name="in_page_channel_UyqLmE"></div><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-  
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Clutch and Throttle Settings</title>
-<link href="./Clutch and Throttle Settings_files/tailwind.min.css" rel="stylesheet">
+  <title>Stark Clutch Settings</title>
+  <link href="./Clutch and Throttle Settings_files/tailwind.min.css" rel="stylesheet">
   <style>
-    /* Основные стили */
-    body {
-      font-family: Arial, sans-serif;
-      margin: 0;
-      padding: 0;
-      background-color: #f4f4f9;
-    }
-    h1, h2, h3 {
-      text-align: center;
-    }
-    h1 {
-      margin-top: 0px;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; }
+    h1 { text-align: center; margin-top: 0; }
+    h2 { text-align: center; }
+    h3 { text-align: center; font-size: 20px; }
+    .container { padding: 10px; max-width: 800px; margin: 0 auto; }
+    .connectionContainer { display: flex; justify-content: center; gap: 10px; margin: 10px 0; }
     button {
-      padding: 10px 20px;
-      font-size: 16px;
-      background-color: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      margin: 5px;
-      cursor: pointer;
-      width: 47%;
-      box-sizing: border-box;
-          }
-    .button-red {
-    background-color: red !important;
-    color: white;
+      padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
+      color: white; border: none; border-radius: 5px; margin: 5px;
+      cursor: pointer; width: 47%; box-sizing: border-box;
     }
-    .button-red:hover {
-      background-color: rgb(255, 75, 75) !important;
-      color: white;
+    button:hover { background-color: #45a049; }
+    .button-red { background-color: red !important; }
+    .button-red:hover { background-color: rgb(255,75,75) !important; }
+    .button-full { width: 97%; }
+    p { font-size: 18px; text-align: center; }
+    .chart-container { width: 100%; position: relative; }
+    .section { display: none; }
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 6px;
+      background: linear-gradient(to right, #2a86d6 50%, #d3d3d3 50%);
+      border-radius: 5px; outline: none; margin: 10px 0;
     }
-    button:hover {
-      background-color: #45a049;
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none; appearance: none;
+      width: 20px; height: 20px; background: #fff;
+      border: 2px solid #2a86d6; border-radius: 50%; cursor: pointer;
     }
-    .container {
-      padding: 10px;
-      margin-left: auto;
-      margin-right: auto;
-      display: block;
+    input[type="range"]::-moz-range-thumb {
+      width: 20px; height: 20px; background: #fff;
+      border: 2px solid #2a86d6; border-radius: 50%; cursor: pointer;
     }
-    .connectionContainer {
-       display: flex;
-  justify-content: center;
-  gap: 10px; /* Optional: adds space between buttons */
-  margin: 10px 0; /* Optional: adds vertical margin */
-          }
-    .container p {
-      font-size: 18px;
-      text-align: center;
+    .slider-row { display: flex; align-items: center; gap: 10px; }
+    .slider-row input[type="range"] { flex: 1; }
+    .slider-value { min-width: 36px; text-align: right; font-size: 14px; color: #333; }
+    .card {
+      background: white; border-radius: 10px;
+      padding: 15px; margin: 12px 0;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.1);
     }
-    .chart-container {
-      width: 100%;
-      height: 0;
-      padding-bottom: 50%;
-      position: relative;
+    .audio-select {
+      width: 100%; padding: 8px; border-radius: 5px;
+      border: 1px solid #ccc; background: white; margin-top: 5px;
+    }
+    label { display: block; font-size: 14px; font-weight: bold; color: #555; margin-top: 8px; }
+    .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 600px) {
+      .grid2 { grid-template-columns: 1fr; }
+      h1 { font-size: 22px; }
+      button { font-size: 13px; }
+    }
+    .badge-new {
+      display: inline-block; background: #4CAF50; color: white;
+      font-size: 11px; padding: 2px 7px; border-radius: 10px;
+      margin-left: 8px; vertical-align: middle;
     }
     #verticalVoltageLine {
       position: absolute;
-      top: 240px;
-      height: 320px;
-      bottom: 0;
-      width: 2px;
-      background-color: red;
-      transition: left 0.3s ease;
-      z-index: 20;
+      width: 2px; background-color: red;
+      transition: left 0.1s ease; z-index: 20; pointer-events: none;
     }
-    #bikeLockButton {
-      display: block;
-      margin-left: auto;
-      margin-right: auto;
+    #verticalVoltageLineA0 {
+      position: absolute;
+      width: 2px; background-color: #2a86d6;
+      transition: left 0.1s ease; z-index: 20; pointer-events: none;
     }
-    @media screen and (max-width: 768px) {
-      h1 { font-size: 24px; }
-      h2 { font-size: 14px; }
-      h3 { font-size: 20px; }
-      .container p { font-size: 16px; }
-      button { font-size: 12px; }
-      #voltageLine { width: 100%; height: 5px; }
-    }
-    .slider-container {
-            position: relative;
-            width: 100%;
-        }
-        /* Styling the range input */
-        input[type="range"] {
-            -webkit-appearance: none; /* Removes default styles for Safari */
-            appearance: none;
-            width: 100%;
-            height: 6px;
-            background: linear-gradient(to right, #2a86d6 0%, #2a86d6 85%, #d3d3d3 85%, #d3d3d3 100%);
-            border-radius: 5px;
-            outline: none;
-            margin: 10px 0;
-            transition: background 0.3s ease;
-        }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none; /* Removes default styles for Safari */
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #fff;
-            border: 2px solid #2a86d6;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            background: #fff;
-            border: 2px solid #2a86d6;
-            border-radius: 50%;
-            cursor: pointer;
-        }
-        /* Tooltip styling - HIDDEN as per request */
-      .tooltip {
-    display: none !important; 
-}
-
-        /* Styles for new Audio Select */
-        .audio-select {
-            width: 100%;
-            padding: 8px;
-            border-radius: 5px;
-            border: 1px solid #ccc;
-            background: white;
-            margin-top: 5px;
-        }
   </style>
-<style>@keyframes slide-in-one-tap {
-  from {
-    transform: translateY(80px);
-  }
-  to {
-    transform: translateY(0px);
-  }
-}
-
-.trust-hide-gracefully {
-  opacity: 0;
-}
-
-.trust-wallet-one-tap .hidden {
-    display: none;
-  }
-
-.trust-wallet-one-tap .semibold {
-    font-weight: 500;
-  }
-
-.trust-wallet-one-tap .binance-plex {
-    font-family: 'Binance';
-  }
-
-.trust-wallet-one-tap .rounded-full {
-    border-radius: 50%;
-  }
-
-.trust-wallet-one-tap .flex {
-    display: flex;
-  }
-
-.trust-wallet-one-tap .flex-col {
-    flex-direction: column;
-  }
-
-.trust-wallet-one-tap .items-center {
-    align-items: center;
-  }
-
-.trust-wallet-one-tap .space-between {
-    justify-content: space-between;
-  }
-
-.trust-wallet-one-tap .justify-center {
-    justify-content: center;
-  }
-
-.trust-wallet-one-tap .w-full {
-    width: 100%;
-  }
-
-.trust-wallet-one-tap .box {
-    transition: all 0.5s cubic-bezier(0, 0, 0, 1.43);
-    animation: slide-in-one-tap 0.5s cubic-bezier(0, 0, 0, 1.43);
-    width: 384px;
-    border-radius: 15px;
-    background: #fff;
-    box-shadow: 0px 2px 4px 0px rgba(0, 0, 0, 0.25);
-    position: fixed;
-    right: 30px;
-    bottom: 30px;
-    z-index: 1020;
-  }
-
-.trust-wallet-one-tap .header {
-    gap: 15px;
-    border-bottom: 1px solid #e6e6e6;
-    padding: 10px 18px;
-  }
-
-.trust-wallet-one-tap .header .left-items {
-      gap: 15px;
-    }
-
-.trust-wallet-one-tap .header .title {
-      color: #1e2329;
-      font-size: 18px;
-      font-weight: 600;
-      line-height: 28px;
-    }
-
-.trust-wallet-one-tap .header .subtitle {
-      color: #474d57;
-      font-size: 14px;
-      line-height: 20px;
-    }
-
-.trust-wallet-one-tap .header .close {
-      color: #1e2329;
-      cursor: pointer;
-    }
-
-.trust-wallet-one-tap .body {
-    padding: 9px 18px;
-    gap: 10px;
-  }
-
-.trust-wallet-one-tap .body .right-items {
-      gap: 10px;
-      width: 100%;
-    }
-
-.trust-wallet-one-tap .body .right-items .wallet-title {
-        color: #1e2329;
-        font-size: 16px;
-        font-weight: 600;
-        line-height: 20px;
-      }
-
-.trust-wallet-one-tap .body .right-items .wallet-subtitle {
-        color: #474d57;
-        font-size: 14px;
-        line-height: 20px;
-      }
-
-.trust-wallet-one-tap .connect-indicator {
-    gap: 15px;
-    padding: 8px 0;
-  }
-
-.trust-wallet-one-tap .connect-indicator .flow-icon {
-      color: #474d57;
-    }
-
-.trust-wallet-one-tap .loading-color {
-    color: #fff;
-  }
-
-.trust-wallet-one-tap .button {
-    border-radius: 50px;
-    outline: 2px solid transparent;
-    outline-offset: 2px;
-    background-color: rgb(5, 0, 255);
-    border-color: rgb(229, 231, 235);
-    cursor: pointer;
-    text-align: center;
-    height: 45px;
-  }
-
-.trust-wallet-one-tap .button .button-text {
-      color: #fff;
-      font-size: 16px;
-      font-weight: 600;
-      line-height: 20px;
-    }
-
-.trust-wallet-one-tap .footer {
-    margin: 20px 30px;
-  }
-
-.trust-wallet-one-tap .check-icon {
-    color: #fff;
-  }
-
-@font-face {
-  font-family: 'Binance';
-  src: url(chrome-extension://egjidjbpglichdcondbcbdnbeeppgdph/fonts/BinancePlex-Regular.otf) format('opentype');
-  font-weight: 400;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Binance';
-  src: url(chrome-extension://egjidjbpglichdcondbcbdnbeeppgdph/fonts/BinancePlex-Medium.otf) format('opentype');
-  font-weight: 500;
-  font-style: normal;
-}
-
-@font-face {
-  font-family: 'Binance';
-  src: url(chrome-extension://egjidjbpglichdcondbcbdnbeeppgdph/fonts/BinancePlex-SemiBold.otf) format('opentype');
-  font-weight: 600;
-  font-style: normal;
-}
-
-/*# sourceMappingURL=data:application/json;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VzIjpbIndlYnBhY2s6Ly8uL2FwcC9zcmMvb25lVGFwL3N0eWxlLmNzcyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFBQTtFQUNFO0lBQ0UsMkJBQTJCO0VBQzdCO0VBQ0E7SUFDRSwwQkFBMEI7RUFDNUI7QUFDRjs7QUFFQTtFQUNFLFVBQVU7QUFDWjs7QUFHRTtJQUNFLGFBQWE7RUFDZjs7QUFFQTtJQUNFLGdCQUFnQjtFQUNsQjs7QUFFQTtJQUNFLHNCQUFzQjtFQUN4Qjs7QUFFQTtJQUNFLGtCQUFrQjtFQUNwQjs7QUFFQTtJQUNFLGFBQWE7RUFDZjs7QUFFQTtJQUNFLHNCQUFzQjtFQUN4Qjs7QUFFQTtJQUNFLG1CQUFtQjtFQUNyQjs7QUFFQTtJQUNFLDhCQUE4QjtFQUNoQzs7QUFFQTtJQUNFLHVCQUF1QjtFQUN6Qjs7QUFFQTtJQUNFLFdBQVc7RUFDYjs7QUFFQTtJQUNFLGdEQUFnRDtJQUNoRCw0REFBNEQ7SUFDNUQsWUFBWTtJQUNaLG1CQUFtQjtJQUNuQixnQkFBZ0I7SUFDaEIsK0NBQStDO0lBQy9DLGVBQWU7SUFDZixXQUFXO0lBQ1gsWUFBWTtJQUNaLGFBQWE7RUFDZjs7QUFFQTtJQUNFLFNBQVM7SUFDVCxnQ0FBZ0M7SUFDaEMsa0JBQWtCO0VBdUJwQjs7QUFyQkU7TUFDRSxTQUFTO0lBQ1g7O0FBRUE7TUFDRSxjQUFjO01BQ2QsZUFBZTtNQUNmLGdCQUFnQjtNQUNoQixpQkFBaUI7SUFDbkI7O0FBRUE7TUFDRSxjQUFjO01BQ2QsZUFBZTtNQUNmLGlCQUFpQjtJQUNuQjs7QUFFQTtNQUNFLGNBQWM7TUFDZCxlQUFlO0lBQ2pCOztBQUdGO0lBQ0UsaUJBQWlCO0lBQ2pCLFNBQVM7RUFtQlg7O0FBakJFO01BQ0UsU0FBUztNQUNULFdBQVc7SUFjYjs7QUFaRTtRQUNFLGNBQWM7UUFDZCxlQUFlO1FBQ2YsZ0JBQWdCO1FBQ2hCLGlCQUFpQjtNQUNuQjs7QUFFQTtRQUNFLGNBQWM7UUFDZCxlQUFlO1FBQ2YsaUJBQWlCO01BQ25COztBQUlKO0lBQ0UsU0FBUztJQUNULGNBQWM7RUFLaEI7O0FBSEU7TUFDRSxjQUFjO0lBQ2hCOztBQUdGO0lBQ0UsV0FBVztFQUNiOztBQUVBO0lBQ0UsbUJBQW1CO0lBQ25CLDhCQUE4QjtJQUM5QixtQkFBbUI7SUFDbkIsZ0NBQWdDO0lBQ2hDLGdDQUFnQztJQUNoQyxlQUFlO0lBQ2Ysa0JBQWtCO0lBQ2xCLFlBQVk7RUFRZDs7QUFORTtNQUNFLFdBQVc7TUFDWCxlQUFlO01BQ2YsZ0JBQWdCO01BQ2hCLGlCQUFpQjtJQUNuQjs7QUFHRjtJQUNFLGlCQUFpQjtFQUNuQjs7QUFFQTtJQUNFLFdBQVc7RUFDYjs7QUFHRjtFQUNFLHNCQUFzQjtFQUN0QiwrREFBMEU7RUFDMUUsZ0JBQWdCO0VBQ2hCLGtCQUFrQjtBQUNwQjs7QUFFQTtFQUNFLHNCQUFzQjtFQUN0QiwrREFBeUU7RUFDekUsZ0JBQWdCO0VBQ2hCLGtCQUFrQjtBQUNwQjs7QUFFQTtFQUNFLHNCQUFzQjtFQUN0QiwrREFBMkU7RUFDM0UsZ0JBQWdCO0VBQ2hCLGtCQUFrQjtBQUNwQiIsInNvdXJjZXNDb250ZW50IjpbIkBrZXlmcmFtZXMgc2xpZGUtaW4tb25lLXRhcCB7XG4gIGZyb20ge1xuICAgIHRyYW5zZm9ybTogdHJhbnNsYXRlWSg4MHB4KTtcbiAgfVxuICB0byB7XG4gICAgdHJhbnNmb3JtOiB0cmFuc2xhdGVZKDBweCk7XG4gIH1cbn1cblxuLnRydXN0LWhpZGUtZ3JhY2VmdWxseSB7XG4gIG9wYWNpdHk6IDA7XG59XG5cbi50cnVzdC13YWxsZXQtb25lLXRhcCB7XG4gIC5oaWRkZW4ge1xuICAgIGRpc3BsYXk6IG5vbmU7XG4gIH1cblxuICAuc2VtaWJvbGQge1xuICAgIGZvbnQtd2VpZ2h0OiA1MDA7XG4gIH1cblxuICAuYmluYW5jZS1wbGV4IHtcbiAgICBmb250LWZhbWlseTogJ0JpbmFuY2UnO1xuICB9XG5cbiAgLnJvdW5kZWQtZnVsbCB7XG4gICAgYm9yZGVyLXJhZGl1czogNTAlO1xuICB9XG5cbiAgLmZsZXgge1xuICAgIGRpc3BsYXk6IGZsZXg7XG4gIH1cblxuICAuZmxleC1jb2wge1xuICAgIGZsZXgtZGlyZWN0aW9uOiBjb2x1bW47XG4gIH1cblxuICAuaXRlbXMtY2VudGVyIHtcbiAgICBhbGlnbi1pdGVtczogY2VudGVyO1xuICB9XG5cbiAgLnNwYWNlLWJldHdlZW4ge1xuICAgIGp1c3RpZnktY29udGVudDogc3BhY2UtYmV0d2VlbjtcbiAgfVxuXG4gIC5qdXN0aWZ5LWNlbnRlciB7XG4gICAganVzdGlmeS1jb250ZW50OiBjZW50ZXI7XG4gIH1cblxuICAudy1mdWxsIHtcbiAgICB3aWR0aDogMTAwJTtcbiAgfVxuXG4gIC5ib3gge1xuICAgIHRyYW5zaXRpb246IGFsbCAwLjVzIGN1YmljLWJlemllcigwLCAwLCAwLCAxLjQzKTtcbiAgICBhbmltYXRpb246IHNsaWRlLWluLW9uZS10YXAgMC41cyBjdWJpYy1iZXppZXIoMCwgMCwgMCwgMS40Myk7XG4gICAgd2lkdGg6IDM4NHB4O1xuICAgIGJvcmRlci1yYWRpdXM6IDE1cHg7XG4gICAgYmFja2dyb3VuZDogI2ZmZjtcbiAgICBib3gtc2hhZG93OiAwcHggMnB4IDRweCAwcHggcmdiYSgwLCAwLCAwLCAwLjI1KTtcbiAgICBwb3NpdGlvbjogZml4ZWQ7XG4gICAgcmlnaHQ6IDMwcHg7XG4gICAgYm90dG9tOiAzMHB4O1xuICAgIHotaW5kZXg6IDEwMjA7XG4gIH1cblxuICAuaGVhZGVyIHtcbiAgICBnYXA6IDE1cHg7XG4gICAgYm9yZGVyLWJvdHRvbTogMXB4IHNvbGlkICNlNmU2ZTY7XG4gICAgcGFkZGluZzogMTBweCAxOHB4O1xuXG4gICAgLmxlZnQtaXRlbXMge1xuICAgICAgZ2FwOiAxNXB4O1xuICAgIH1cblxuICAgIC50aXRsZSB7XG4gICAgICBjb2xvcjogIzFlMjMyOTtcbiAgICAgIGZvbnQtc2l6ZTogMThweDtcbiAgICAgIGZvbnQtd2VpZ2h0OiA2MDA7XG4gICAgICBsaW5lLWhlaWdodDogMjhweDtcbiAgICB9XG5cbiAgICAuc3VidGl0bGUge1xuICAgICAgY29sb3I6ICM0NzRkNTc7XG4gICAgICBmb250LXNpemU6IDE0cHg7XG4gICAgICBsaW5lLWhlaWdodDogMjBweDtcbiAgICB9XG5cbiAgICAuY2xvc2Uge1xuICAgICAgY29sb3I6ICMxZTIzMjk7XG4gICAgICBjdXJzb3I6IHBvaW50ZXI7XG4gICAgfVxuICB9XG5cbiAgLmJvZHkge1xuICAgIHBhZGRpbmc6IDlweCAxOHB4O1xuICAgIGdhcDogMTBweDtcblxuICAgIC5yaWdodC1pdGVtcyB7XG4gICAgICBnYXA6IDEwcHg7XG4gICAgICB3aWR0aDogMTAwJTtcblxuICAgICAgLndhbGxldC10aXRsZSB7XG4gICAgICAgIGNvbG9yOiAjMWUyMzI5O1xuICAgICAgICBmb250LXNpemU6IDE2cHg7XG4gICAgICAgIGZvbnQtd2VpZ2h0OiA2MDA7XG4gICAgICAgIGxpbmUtaGVpZ2h0OiAyMHB4O1xuICAgICAgfVxuXG4gICAgICAud2FsbGV0LXN1YnRpdGxlIHtcbiAgICAgICAgY29sb3I6ICM0NzRkNTc7XG4gICAgICAgIGZvbnQtc2l6ZTogMTRweDtcbiAgICAgICAgbGluZS1oZWlnaHQ6IDIwcHg7XG4gICAgICB9XG4gICAgfVxuICB9XG5cbiAgLmNvbm5lY3QtaW5kaWNhdG9yIHtcbiAgICBnYXA6IDE1cHg7XG4gICAgcGFkZGluZzogOHB4IDA7XG5cbiAgICAuZmxvdy1pY29uIHtcbiAgICAgIGNvbG9yOiAjNDc0ZDU3O1xuICAgIH1cbiAgfVxuXG4gIC5sb2FkaW5nLWNvbG9yIHtcbiAgICBjb2xvcjogI2ZmZjtcbiAgfVxuXG4gIC5idXR0b24ge1xuICAgIGJvcmRlci1yYWRpdXM6IDUwcHg7XG4gICAgb3V0bGluZTogMnB4IHNvbGlkIHRyYW5zcGFyZW50O1xuICAgIG91dGxpbmUtb2Zmc2V0OiAycHg7XG4gICAgYmFja2dyb3VuZC1jb2xvcjogcmdiKDUsIDAsIDI1NSk7XG4gICAgYm9yZGVyLWNvbG9yOiByZ2IoMjI5LCAyMzEsIDIzNSk7XG4gICAgY3Vyc29yOiBwb2ludGVyO1xuICAgIHRleHQtYWxpZ246IGNlbnRlcjtcbiAgICBoZWlnaHQ6IDQ1cHg7XG5cbiAgICAuYnV0dG9uLXRleHQge1xuICAgICAgY29sb3I6ICNmZmY7XG4gICAgICBmb250LXNpemU6IDE2cHg7XG4gICAgICBmb250LXdlaWdodDogNjAwO1xuICAgICAgbGluZS1oZWlnaHQ6IDIwcHg7XG4gICAgfVxuICB9XG5cbiAgLmZvb3RlciB7XG4gICAgbWFyZ2luOiAyMHB4IDMwcHg7XG4gIH1cblxuICAuY2hlY2staWNvbiB7XG4gICAgY29sb3I6ICNmZmY7XG4gIH1cbn1cblxuQGZvbnQtZmFjZSB7XG4gIGZvbnQtZmFtaWx5OiAnQmluYW5jZSc7XG4gIHNyYzogdXJsKCcuL2ZvbnRzL2JpbmFuY2VQbGV4L0JpbmFuY2VQbGV4LVJlZ3VsYXIub3RmJykgZm9ybWF0KCdvcGVudHlwZScpO1xuICBmb250LXdlaWdodDogNDAwO1xuICBmb250LXN0eWxlOiBub3JtYWw7XG59XG5cbkBmb250LWZhY2Uge1xuICBmb250LWZhbWlseTogJ0JpbmFuY2UnO1xuICBzcmM6IHVybCgnLi9mb250cy9iaW5hbmNlUGxleC9CaW5hbmNlUGxleC1NZWRpdW0ub3RmJykgZm9ybWF0KCdvcGVudHlwZScpO1xuICBmb250LXdlaWdodDogNTAwO1xuICBmb250LXN0eWxlOiBub3JtYWw7XG59XG5cbkBmb250LWZhY2Uge1xuICBmb250LWZhbWlseTogJ0JpbmFuY2UnO1xuICBzcmM6IHVybCgnLi9mb250cy9iaW5hbmNlUGxleC9CaW5hbmNlUGxleC1TZW1pQm9sZC5vdGYnKSBmb3JtYXQoJ29wZW50eXBlJyk7XG4gIGZvbnQtd2VpZ2h0OiA2MDA7XG4gIGZvbnQtc3R5bGU6IG5vcm1hbDtcbn1cbiJdLCJzb3VyY2VSb290IjoiIn0= */</style></head>
+</head>
 <body>
-  <div class="container">
-    <h1>Clutch and Throttle Settings</h1>
-    <div class="connectionContainer">
+<div class="container">
+
+  <h1>Stark Clutch</h1>
+
+  <!-- ── Всегда видно ── -->
+  <div class="connectionContainer">
     <button id="connectBleButton">Connect</button>
     <button id="disconnectBleButton">Disconnect</button>
-    </div>
-    <p>State: <strong><span id="bleState" style="color:#d13a30;">Disconnected</span></strong></p> 
-    <button id="bikeLockButton" style="display:none;">Lock Bike</button>
-    <div class="chart-container">
-      <canvas id="chartJSContainer" width="1705" height="852" style="display: block; box-sizing: border-box; height: 758px; width: 1516px;"></canvas>
-    </div><div class="flex justify-center items-center mt-5 space-x-4">
+  </div>
+  <p>State: <strong><span id="bleState" style="color:#d13a30;">Disconnected</span></strong></p>
 
-  <button id="saveDropdownValue" class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-    Save
-  </button>
-   <button id="loadDropdownValue" class="px-4 py-2 bg-green-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-green-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
-    Load
-  </button>
-  <button id="setDefaultValue" class="px-4 py-2 bg-gray-500 text-white text-sm font-medium rounded-md shadow-sm hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500">
-    Default
-  </button></div>
- 
+  <!-- ── Блок Lock Bike (появляется если найдена характеристика 0010) ── -->
+  <div id="bikeLockSection" class="section">
+    <div class="card">
+      <button id="bikeLockButton" class="button-full">Lock Bike</button>
+    </div>
+  </div>
 
-    <h2>Flywheel Effect Acceleration</h2>
-    <div class="slider-container">
-      <div class="tooltip" id="tooltip1">15</div>
-      <input type="range" id="slider1" min="1" max="30" value="15" style="background: linear-gradient(to right, rgb(42, 134, 214) 48.2759%, rgb(211, 211, 211) 48.2759%);">
-    </div>
-    <h2>Flywheel Effect Deceleration</h2>
-    <div class="slider-container">
-      <div class="tooltip" id="tooltip3">15</div>
-      <input type="range" id="slider3" min="1" max="30" value="15" style="background: linear-gradient(to right, rgb(42, 134, 214) 48.2759%, rgb(211, 211, 211) 48.2759%);">
-    </div>
- <h2>Clutch engagement speed</h2>
-    <div class="slider-container">
-      <div class="tooltip" id="tooltip4">15</div>
-      <input type="range" id="slider4" min="1" max="81" value="15" style="background: linear-gradient(to right, rgb(42, 134, 214) 17.5%, rgb(211, 211, 211) 17.5%);">
+  <!-- ── Базовый блок (любая прошивка) ── -->
+  <div id="basicSection" class="section">
+
+    <!-- График кривых -->
+    <div class="card">
+      <h3>Pedal Curves</h3>
+      <div class="chart-container">
+        <canvas id="chartJSContainer"></canvas>
+        <div id="verticalVoltageLine"></div>
+        <div id="verticalVoltageLineA0"></div>
+      </div>
+      <div class="connectionContainer" style="margin-top:10px;">
+        <button id="saveDropdownValue">Save</button>
+        <button id="loadDropdownValue">Load</button>
+      </div>
+      <div class="connectionContainer">
+        <button id="setDefaultValue" style="background:#888;">Default</button>
+      </div>
     </div>
 
-    <div class="p-4 mt-6 bg-gray-100 rounded-lg shadow-inner">
-        <h2 class="text-xl font-bold mb-4">Engine Sound Settings</h2>
-        
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-                <label class="block text-sm font-bold text-gray-700">Volume</label>
-                <div class="slider-container">
-                    <div class="tooltip" id="volTip">50</div>
-                    <input type="range" id="volSlider" min="0" max="100" value="50" style="background: linear-gradient(to right, rgb(245, 158, 11) 50%, rgb(211, 211, 211) 50%);">
-                </div>
-            </div>
+    <!-- Старые ползунки фильтра -->
+    <div class="card">
+      <h3>Filter</h3>
+      <label>Flywheel Acceleration</label>
+      <div class="slider-row">
+        <input type="range" id="slider1" min="1" max="30" value="15">
+        <span class="slider-value" id="val1">15</span>
+      </div>
+      <label>Flywheel Deceleration</label>
+      <div class="slider-row">
+        <input type="range" id="slider3" min="1" max="30" value="15">
+        <span class="slider-value" id="val3">15</span>
+      </div>
+      <label>Clutch Engagement Speed</label>
+      <div class="slider-row">
+        <input type="range" id="slider4" min="1" max="81" value="15">
+        <span class="slider-value" id="val4">15</span>
+      </div>
+    </div>
 
-            <div>
-                <label class="block text-sm font-bold text-gray-700">Waveform (Timbre)</label>
-                <select id="waveType" class="audio-select">
-                    <option value="sawtooth">Sawtooth (Engine-like)</option>
-                    <option value="sine">Sine (Soft)</option>
-                    <option value="square">Square (Aggressive)</option>
-                    <option value="triangle">Triangle (Hollow)</option>
-                </select>
-            </div>
-
-            <div>
-                <label class="block text-sm font-bold text-gray-700">Idle Freq (Hz)</label>
-                <div class="slider-container">
-                    <div class="tooltip" id="freqMinTip">40</div>
-                    <input type="range" id="freqMinSlider" min="20" max="200" value="40" style="background: linear-gradient(to right, rgb(59, 130, 246) 11.1111%, rgb(211, 211, 211) 11.1111%);">
-                </div>
-            </div>
-
-            <div>
-                <label class="block text-sm font-bold text-gray-700">Max Freq (Hz)</label>
-                <div class="slider-container">
-                    <div class="tooltip" id="freqMaxTip">300</div>
-                    <input type="range" id="freqMaxSlider" min="100" max="1000" value="300" style="background: linear-gradient(to right, rgb(239, 68, 68) 22.2222%, rgb(211, 211, 211) 22.2222%);">
-                </div>
-            </div>
+    <!-- Звук двигателя -->
+    <div class="card">
+      <h3>Engine Sound</h3>
+      <div class="grid2">
+        <div>
+          <label>Volume</label>
+          <div class="slider-row">
+            <input type="range" id="volSlider" min="0" max="100" value="50">
+            <span class="slider-value" id="volVal">50</span>
+          </div>
         </div>
+        <div>
+          <label>Waveform</label>
+          <select id="waveType" class="audio-select">
+            <option value="sawtooth">Sawtooth (Engine-like)</option>
+            <option value="sine">Sine (Soft)</option>
+            <option value="square">Square (Aggressive)</option>
+            <option value="triangle">Triangle (Hollow)</option>
+          </select>
+        </div>
+        <div>
+          <label>Idle Freq (Hz)</label>
+          <div class="slider-row">
+            <input type="range" id="freqMinSlider" min="20" max="200" value="40">
+            <span class="slider-value" id="freqMinVal">40</span>
+          </div>
+        </div>
+        <div>
+          <label>Max Freq (Hz)</label>
+          <div class="slider-row">
+            <input type="range" id="freqMaxSlider" min="100" max="1000" value="300">
+            <span class="slider-value" id="freqMaxVal">300</span>
+          </div>
+        </div>
+      </div>
     </div>
 
-    
-    <h3 class="mt-8">Clutch calibration</h3>
-    <div class="inline-row">
+    <!-- Калибровка -->
+    <div class="card">
+      <h3>Clutch Calibration</h3>
+      <p style="font-size:14px;">
+        Value: <span id="voltageContainerA0">-</span> &nbsp;|&nbsp;
+        Pressed: <span id="fullyPressedValueA0">-</span> &nbsp;|&nbsp;
+        Released: <span id="fullyReleasedValueA0">-</span>
+      </p>
       <div class="connectionContainer">
         <button id="savePressedButton">Save Clutch Pressed</button>
         <button id="saveReleasedButton">Save Clutch Released</button>
       </div>
-            <p><span id="voltageContainerA0">-</span> | <span id="fullyPressedValueA0">-</span> | <span id="fullyReleasedValueA0">-</span></p>
-      <h3>Throttle calibration</h3>
+
+      <h3 style="margin-top:16px;">Throttle Calibration</h3>
+      <p style="font-size:14px;">
+        Value: <span id="voltageContainerA1">-</span> &nbsp;|&nbsp;
+        Open: <span id="fullyPressedValueA1">-</span> &nbsp;|&nbsp;
+        Closed: <span id="fullyReleasedValueA1">-</span>
+      </p>
       <div class="connectionContainer">
         <button id="savePressedButtonA1">Save Throttle Open</button>
         <button id="saveReleasedButtonA1">Save Throttle Closed</button>
       </div>
-            <p><span id="voltageContainerA1">-</span> | <span id="fullyPressedValueA1">-</span> | <span id="fullyReleasedValueA1">-</span></p>
     </div>
-  </div>
 
-  <script src="./Clutch and Throttle Settings_files/chart.js.download"></script>
-  <script src="./Clutch and Throttle Settings_files/lodash"></script>
-  <script src="./Clutch and Throttle Settings_files/chartjs-plugin-datalabels"></script>
-  <script src="./Clutch and Throttle Settings_files/chartjs-plugin-dragdata"></script>
+  </div><!-- /basicSection -->
 
-  <script>
-    let audioCtx = null, oscillator = null, gainNode = null;
-    let masterVol = 0.5, freqMin = 40, freqMax = 300;
+  <!-- ── Блок Flywheel v2 (появляется если найдена характеристика 000A) ── -->
+  <div id="flywheelSection" class="section">
+    <div class="card">
+      <h3>2-Stroke Flywheel Effect <span class="badge-new">v2</span></h3>
 
-    function saveAudioSettings() {
-        const settings = {
-            masterVol: masterVol,
-            freqMin: freqMin,
-            freqMax: freqMax,
-            currentWave: document.getElementById('waveType').value
-        };
-        localStorage.setItem('audioSettings', JSON.stringify(settings));
-    }
+      <label>Rise under load (clutch released)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_riseLoaded" min="1" max="100" value="5">
+        <span class="slider-value" id="fw_riseLoaded_val">5</span>
+      </div>
 
-    function loadAudioSettings() {
-        const saved = localStorage.getItem('audioSettings');
-        if (saved) {
-            const s = JSON.parse(saved);
-            masterVol = s.masterVol;
-            freqMin = s.freqMin;
-            freqMax = s.freqMax;
-            
-            document.getElementById('volSlider').value = masterVol * 100;
-            document.getElementById('freqMinSlider').value = freqMin;
-            document.getElementById('freqMaxSlider').value = freqMax;
-            document.getElementById('waveType').value = s.currentWave;
-        }
-    }
+      <label>Fall under load (clutch released)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_fallLoaded" min="1" max="100" value="8">
+        <span class="slider-value" id="fw_fallLoaded_val">8</span>
+      </div>
 
-    function initAudio() {
-        if (audioCtx) return;
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        oscillator = audioCtx.createOscillator();
-        gainNode = audioCtx.createGain();
-        const filter = audioCtx.createBiquadFilter();
-        
-        filter.type = 'lowpass';
-        filter.frequency.setValueAtTime(600, audioCtx.currentTime);
-        oscillator.type = document.getElementById('waveType').value;
-        gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+      <label>Rise unloaded (clutch pressed)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_riseUnloaded" min="1" max="200" value="30">
+        <span class="slider-value" id="fw_riseUnloaded_val">30</span>
+      </div>
 
-        oscillator.connect(filter);
-        filter.connect(gainNode);
-        gainNode.connect(audioCtx.destination);
-        oscillator.start();
-    }
+      <label>Fall unloaded (clutch pressed)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_fallUnloaded" min="1" max="200" value="50">
+        <span class="slider-value" id="fw_fallUnloaded_val">50</span>
+      </div>
+    </div>
 
-   let lastSoundUpdate = 0;
-   function updateEngineSound(v, minV, maxV) {
-       if (!audioCtx || !oscillator || !gainNode) return;
-       const now = performance.now();
-       if (now - lastSoundUpdate < 20) return; 
-       lastSoundUpdate = now;
+    <div class="card">
+      <h3>Powerband <span class="badge-new">v2</span></h3>
 
-       let norm = (v - minV) / (maxV - minV);
-       norm = Math.max(0, Math.min(1, norm));
-       
-       const freq = freqMin + (norm * (freqMax - freqMin));
-       oscillator.frequency.setTargetAtTime(freq, audioCtx.currentTime, 0.05);
-       
-       const targetVol = masterVol * (0.2 + (norm * 0.8));
-       gainNode.gain.setTargetAtTime(v === 0 ? 0 : targetVol, audioCtx.currentTime, 0.05);
-   }
-  </script>
+      <label>Powerband threshold (%)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_pbThreshold" min="0" max="100" value="40">
+        <span class="slider-value" id="fw_pbThreshold_val">40</span>
+      </div>
 
-  <script>
-    function updateSlider(slider, tooltip, color = "#2a86d6") {
-        const value = slider.value;
-        const percentage = (value - slider.min) / (slider.max - slider.min) * 100;
-        slider.style.background = `linear-gradient(to right, ${color} ${percentage}%, #d3d3d3 ${percentage}%)`;
-    }
+      <label>Powerband rise rate</label>
+      <div class="slider-row">
+        <input type="range" id="fw_pbRiseRate" min="1" max="200" value="80">
+        <span class="slider-value" id="fw_pbRiseRate_val">80</span>
+      </div>
+    </div>
 
-    const slider1 = document.getElementById("slider1");
-    const tooltip1 = document.getElementById("tooltip1");
-    slider1.addEventListener("input", () => updateSlider(slider1, tooltip1));
+    <div class="card">
+      <h3>Rev Hang <span class="badge-new">v2</span></h3>
 
-    const slider3 = document.getElementById("slider3");
-    const tooltip3 = document.getElementById("tooltip3");
-    slider3.addEventListener("input", () => updateSlider(slider3, tooltip3));
+      <label>Hang duration (ms)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_hangDuration" min="0" max="500" value="200">
+        <span class="slider-value" id="fw_hangDuration_val">200</span>
+      </div>
 
-    const slider4 = document.getElementById("slider4");
-    const tooltip4 = document.getElementById("tooltip4");
-    slider4.addEventListener("input", () => updateSlider(slider4, tooltip4));
+      <label>Hang threshold (clutch pull speed)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_hangThreshold" min="1" max="50" value="15">
+        <span class="slider-value" id="fw_hangThreshold_val">15</span>
+      </div>
+    </div>
 
-    document.getElementById('volSlider').addEventListener('input', (e) => {
-        masterVol = e.target.value / 100;
-        updateSlider(e.target, document.getElementById('volTip'), "#f59e0b");
-        saveAudioSettings();
-    });
-    document.getElementById('freqMinSlider').addEventListener('input', (e) => {
-        freqMin = parseInt(e.target.value);
-        updateSlider(e.target, document.getElementById('freqMinTip'), "#3b82f6");
-        saveAudioSettings();
-    });
-    document.getElementById('freqMaxSlider').addEventListener('input', (e) => {
-        freqMax = parseInt(e.target.value);
-        updateSlider(e.target, document.getElementById('freqMaxTip'), "#ef4444");
-        saveAudioSettings();
-    });
-    document.getElementById('waveType').addEventListener('change', (e) => {
-        if (oscillator) oscillator.type = e.target.value;
-        saveAudioSettings();
-    });
+    <div class="card">
+      <h3>Clutch Snap <span class="badge-new">v2</span></h3>
 
-    loadAudioSettings();
-    updateSlider(slider3, tooltip3);
-    updateSlider(slider1, tooltip1);
-    updateSlider(slider4, tooltip4);
-    updateSlider(document.getElementById('volSlider'), document.getElementById('volTip'), "#f59e0b");
-    updateSlider(document.getElementById('freqMinSlider'), document.getElementById('freqMinTip'), "#3b82f6");
-    updateSlider(document.getElementById('freqMaxSlider'), document.getElementById('freqMaxTip'), "#ef4444");
-  </script>
+      <label>Snap boost (%)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_snapBoost" min="100" max="200" value="130">
+        <span class="slider-value" id="fw_snapBoost_val">130</span>
+      </div>
 
-  <script>
-    const chartConfiguration = {
-      type: "line",
-      options: {
-        plugins: { datalabels: { display: false } },
-        scales: {
-          x: { type: "linear", min: 0, max: 100, ticks: { display: false }, grid: { display: true } },
-          y: { min: 0, max: 100, ticks: { display: false }, grid: { display: true } }
-        },
-      },
-      data: {
-        labels: Array.from({ length: 10 }, (_, i) => `Point ${i + 1}`),
-        datasets: [
-          {
-            label: "Clutch",
-            data: JSON.parse(localStorage.getItem('chartDataClutch')) || [
-              { x: 0, y: 0 }, { x: 10, y: 9 }, { x: 20, y: 16 },
-              { x: 30, y: 26 }, { x: 40, y: 58 }, { x: 50, y: 77 },
-              { x: 60, y: 82 }, { x: 70, y: 86 }, { x: 80, y: 90 }, { x: 90, y: 94 },
-              { x: 100, y: 100 }
-            ],
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointHitRadius: 25,
-          },
-          {
-            label: "Gas",
-            data: JSON.parse(localStorage.getItem('chartDataGas')) || [
-              { x: 0, y: 0 }, { x: 10, y: 10 }, { x: 20, y: 20 },
-              { x: 30, y: 30 }, { x: 40, y: 40 }, { x: 50, y: 50 },
-              { x: 60, y: 60 }, { x: 70, y: 70 }, { x: 80, y: 80 }, { x: 90, y: 90 },
-              { x: 100, y: 100 }
-            ],
-            fill: true,
-            tension: 0.4,
-            borderWidth: 2,
-            pointHitRadius: 25,          },
-        ],
-      },
-    };
+      <label>Snap duration (ms)</label>
+      <div class="slider-row">
+        <input type="range" id="fw_snapDuration" min="0" max="300" value="80">
+        <span class="slider-value" id="fw_snapDuration_val">80</span>
+      </div>
+    </div>
+  </div><!-- /flywheelSection -->
 
-    let myChart;
-    document.body.onload = function () {
-      const ctx = document.getElementById("chartJSContainer").getContext("2d");
-      myChart = new Chart(ctx, chartConfiguration);
-      myChart.options.plugins.dragData = {
-        onDragEnd: function () {
-          localStorage.setItem('chartDataClutch', JSON.stringify(myChart.data.datasets[0].data));
-          localStorage.setItem('chartDataGas', JSON.stringify(myChart.data.datasets[1].data));
-        }
-      };
-    };
-  </script><script>
-    const connectButton = document.getElementById('connectBleButton');
-    const disconnectButton = document.getElementById('disconnectBleButton');
-    const bleStateContainer = document.getElementById('bleState');
-    const voltageContainerA0 = document.getElementById('voltageContainerA0');
-    const voltageContainerA1 = document.getElementById('voltageContainerA1');
-    const fullyPressedValueA0Container = document.getElementById('fullyPressedValueA0');
-    const fullyReleasedValueA0Container = document.getElementById('fullyReleasedValueA0');
-    const fullyPressedValueA1Container = document.getElementById('fullyPressedValueA1');
-    const fullyReleasedValueA1Container = document.getElementById('fullyReleasedValueA1');
-    const savePressedButton = document.getElementById('savePressedButton');
-    const saveReleasedButton = document.getElementById('saveReleasedButton');
-    const savePressedButtonA1 = document.getElementById('savePressedButtonA1');
-    const saveReleasedButtonA1 = document.getElementById('saveReleasedButtonA1');
-    const bikeLockButton = document.getElementById('bikeLockButton');
-    const deviceName = 'Stark_Clutch';
-    const bleServiceUuid = '19b10000-e8f2-537e-4f6c-d104768a1214';
-    const sensorCharacteristicUuid = '19b10001-e8f2-537e-4f6c-d104768a1214';
-    const commandCharacteristicUuid = '19b10002-e8f2-537e-4f6c-d104768a1214';
-    const coefsCharacteristicUuid = '19b10004-e8f2-537e-4f6c-d104768a1214';
-    const defCoefsCharacteristicUuid = '19b10005-e8f2-537e-4f6c-d104768a1214';
-    const analogCoefCharacteristicUuid1 = '19b10006-e8f2-537e-4f6c-d104768a1214';
-    const analogStepCharacteristicUuid1 = '19b10007-e8f2-537e-4f6c-d104768a1214';
-    const analogCoefCharacteristicUuid2 = '19b10008-e8f2-537e-4f6c-d104768a1214';
-    const analogStepCharacteristicUuid2 = '19b10009-e8f2-537e-4f6c-d104768a1214';
-    const bikeLockCharacteristicUuid = '19b10010-e8f2-537e-4f6c-d104768a1214';
+</div><!-- /container -->
 
-    class BLEOperationQueue {
-      constructor() { this.queue = []; this.isProcessing = false; }
-      enqueue(operation) { return new Promise((resolve, reject) => { this.queue.push({ operation, resolve, reject }); this.processQueue(); }); }
-      async processQueue() {
-        if (this.isProcessing || this.queue.length === 0) return;
-        this.isProcessing = true;
-        await new Promise(r => setTimeout(r, 10));
-        const { operation, resolve, reject } = this.queue.shift();
-        try { const result = await operation(); resolve(result); } catch (error) { reject(error); } finally { this.isProcessing = false; this.processQueue(); }
-      }
-    }
-    const bleQueue = new BLEOperationQueue();
-    let bleDevice, sensorCharacteristic, commandCharacteristic, coefsCharacteristic, defCoefsCharacteristic;
-    let analogCoefCharacteristic1, analogStepCharacteristic1, analogCoefCharacteristic2, analogStepCharacteristic2, bikeLockCharacteristic;
-    let bikeLockStatus = false;
+<script src="./Clutch and Throttle Settings_files/chart.js.download"></script>
+<script src="./Clutch and Throttle Settings_files/lodash"></script>
+<script src="./Clutch and Throttle Settings_files/chartjs-plugin-datalabels"></script>
+<script src="./Clutch and Throttle Settings_files/chartjs-plugin-dragdata"></script>
 
-    connectButton.addEventListener('click', async () => {
-      try {
-        initAudio(); 
-        bleDevice = await navigator.bluetooth.requestDevice({ filters: [{ name: deviceName }], optionalServices: [bleServiceUuid] });
-        const server = await bleDevice.gatt.connect();
-        bleStateContainer.textContent = 'Connected';
-        bleStateContainer.style.color = "#24af24";
-        const service = await server.getPrimaryService(bleServiceUuid);
-        sensorCharacteristic = await service.getCharacteristic(sensorCharacteristicUuid);
-        commandCharacteristic = await service.getCharacteristic(commandCharacteristicUuid);
-        coefsCharacteristic = await service.getCharacteristic(coefsCharacteristicUuid);
-        defCoefsCharacteristic = await service.getCharacteristic(defCoefsCharacteristicUuid);
-        analogCoefCharacteristic1 = await service.getCharacteristic(analogCoefCharacteristicUuid1);
-        analogStepCharacteristic1 = await service.getCharacteristic(analogStepCharacteristicUuid1);
-        analogCoefCharacteristic2 = await service.getCharacteristic(analogCoefCharacteristicUuid2);
-        analogStepCharacteristic2 = await service.getCharacteristic(analogStepCharacteristicUuid2);
-        try { bikeLockCharacteristic = await service.getCharacteristic(bikeLockCharacteristicUuid); } catch (err) { bikeLockCharacteristic = null; }
-        sensorCharacteristic.startNotifications();
-        sensorCharacteristic.addEventListener('characteristicvaluechanged', handleCharacteristicValueChanged);
-        await new Promise(r => setTimeout(r, 1000));
-        if (bikeLockCharacteristic) { await fetchBikeLockStateFromBle(); bikeLockButton.style.display='block'; }
-        await fetchChartDataFromBle();
-        await loadSliderValuesFromBle();
-      } catch (error) { bleStateContainer.textContent = 'Failed: ' + error; bleStateContainer.style.color = "#d13a30"; }
-    });
-
-    disconnectButton.addEventListener('click', () => {
-      if (bleDevice && bleDevice.gatt.connected) {
-        bleDevice.gatt.disconnect();
-        bleStateContainer.textContent = 'Disconnected';
-        bleStateContainer.style.color = "#d13a30";
-        bikeLockButton.style.display = 'none';
-        if(gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-      }
-    });
-
-    const handleCharacteristicValueChanged = (event) => {
-      const value = new TextDecoder().decode(event.target.value);
-      const data = value.split(',');
-      if (data.length === 6) {
-        const curA0 = parseFloat(data[0]);
-        const curA1 = parseFloat(data[3]);
-        const prsA1 = parseFloat(data[4]);
-        const relA1 = parseFloat(data[5]);
-
-        voltageContainerA0.textContent = curA0;
-        voltageContainerA1.textContent = curA1;
-        fullyPressedValueA0Container.textContent = data[1];
-        fullyReleasedValueA0Container.textContent = data[2];
-        fullyPressedValueA1Container.textContent = prsA1;
-        fullyReleasedValueA1Container.textContent = relA1;
-        
-        // ЗВУК ПРИВЯЗАН К A1 (ГАЗ)
-        updateEngineSound(curA1, relA1, prsA1);
-      }
-    };
-
-    async function loadSliderValuesFromBle() {
-        try {
-            const c1 = await bleQueue.enqueue(() => analogCoefCharacteristic1.readValue());
-            slider1.value = new Float32Array(c1.buffer)[0] * 100;
-            updateSlider(slider1, tooltip1);
-            const c2 = await bleQueue.enqueue(() => analogCoefCharacteristic2.readValue());
-            slider3.value = new Float32Array(c2.buffer)[0] * 100;
-            updateSlider(slider3, tooltip3);
-            const s2 = await bleQueue.enqueue(() => analogStepCharacteristic2.readValue());
-            slider4.value = new Int16Array(s2.buffer)[0];
-            updateSlider(slider4, tooltip4);
-        } catch (e) { console.error(e); }
-    }
-
-    async function updateAnalogCoef1(v) { const b = new Float32Array([v/100]); await bleQueue.enqueue(() => analogCoefCharacteristic1.writeValue(b)); }
-    async function updateAnalogCoef2(v) { const b = new Float32Array([v/100]); await bleQueue.enqueue(() => analogCoefCharacteristic2.writeValue(b)); }
-    async function updateAnalogStep2(v) { const b = new Int16Array([v]); await bleQueue.enqueue(() => analogStepCharacteristic2.writeValue(b)); }
-
-    async function fetchChartDataFromBle() {
-        const val = await bleQueue.enqueue(() => coefsCharacteristic.readValue());
-        const dArr = new Float64Array(val.buffer);
-        if (dArr.length === 22) {
-            myChart.data.datasets[0].data = Array.from(dArr).slice(0, 11).map((y, i) => ({ x: i * 10, y }));
-            myChart.data.datasets[1].data = Array.from(dArr).slice(11, 22).map((y, i) => ({ x: i * 10, y }));
-            myChart.update();
-        }
-    }
-
-    const defaultClutch = [0, 6, 14, 30, 54, 71, 81, 86, 90, 94, 100];
-    const defaultGas    = [0, 18, 28, 37, 45, 53, 61, 70, 80, 90, 100];
-
-    function fetchDefaultDataFromBle() {
-        myChart.data.datasets[0].data = defaultClutch.map((y, i) => ({ x: i * 10, y }));
-        myChart.data.datasets[1].data = defaultGas.map((y, i) => ({ x: i * 10, y }));
-        myChart.update();
-    }
-
-    async function fetchBikeLockStateFromBle() {
-        const val = await bleQueue.enqueue(() => bikeLockCharacteristic.readValue());
-        bikeLockStatus = new Int8Array(val.buffer)[0] !== 0;
-        updateButtonColor();
-    }
-
-    async function switchBikeLockState() {
-        await bleQueue.enqueue(() => bikeLockCharacteristic.writeValue(new Uint8Array([!bikeLockStatus])));
-        fetchBikeLockStateFromBle();
-    }
-
-    function updateButtonColor() {
-        bikeLockButton.classList.toggle("button-red", bikeLockStatus);
-        bikeLockButton.innerHTML = bikeLockStatus ? "Unlock Bike" : "Lock Bike";
-    }
-
-    async function sendChartDataToBle(chartData) {
-        const combined = new Float64Array([...chartData.datasets[0].data.map(p => p.y), ...chartData.datasets[1].data.map(p => p.y)]);
-        await bleQueue.enqueue(() => coefsCharacteristic.writeValue(new Uint8Array(combined.buffer)));
-    }
-
-    function addCommandListener(btn, cmd) {
-        btn.addEventListener('click', async () => {
-            if (commandCharacteristic) await bleQueue.enqueue(() => commandCharacteristic.writeValue(new TextEncoder().encode(cmd)));
-        });
-    }
-
-    addCommandListener(savePressedButton, "Fully Pressed A0");
-    addCommandListener(saveReleasedButton, "Fully Released A0");
-    addCommandListener(savePressedButtonA1, "Fully Pressed A1");
-    addCommandListener(saveReleasedButtonA1, "Fully Released A1");
-
-    slider1.addEventListener("input", () => updateAnalogCoef1(slider1.value));
-    slider3.addEventListener("input", () => updateAnalogCoef2(slider3.value));
-    slider4.addEventListener("input", () => updateAnalogStep2(slider4.value));
-
-    document.getElementById('saveDropdownValue').addEventListener('click', () => sendChartDataToBle(myChart.data));
-    document.getElementById('loadDropdownValue').addEventListener('click', fetchChartDataFromBle);
-    document.getElementById('setDefaultValue').addEventListener('click', fetchDefaultDataFromBle);
-    document.getElementById('bikeLockButton').addEventListener('click', switchBikeLockState);
-    updateButtonColor();
-</script>
 <script>
-    Math.map = function (value, in_min, in_max, out_min, out_max) {
-      return (value - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
-    };
-</script>
+  // ── BLE UUIDs ──
+  const SERVICE_UUID        = '19b10000-e8f2-537e-4f6c-d104768a1214';
+  const UUID_SENSOR         = '19b10001-e8f2-537e-4f6c-d104768a1214';
+  const UUID_COMMAND        = '19b10002-e8f2-537e-4f6c-d104768a1214';
+  const UUID_COEFS          = '19b10004-e8f2-537e-4f6c-d104768a1214';
+  const UUID_DEF_COEFS      = '19b10005-e8f2-537e-4f6c-d104768a1214';
+  const UUID_ACOEF1         = '19b10006-e8f2-537e-4f6c-d104768a1214';
+  const UUID_ASTEP1         = '19b10007-e8f2-537e-4f6c-d104768a1214';
+  const UUID_ACOEF2         = '19b10008-e8f2-537e-4f6c-d104768a1214';
+  const UUID_ASTEP2         = '19b10009-e8f2-537e-4f6c-d104768a1214';
+  const UUID_BIKELOCK       = '19b10010-e8f2-537e-4f6c-d104768a1214';
+  // v2 flywheel UUIDs
+  const UUID_FW_RISE_LOADED   = '19b1000a-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_FALL_LOADED   = '19b1000b-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_RISE_UNLOADED = '19b1000c-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_FALL_UNLOADED = '19b1000d-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_PB_THRESHOLD  = '19b1000e-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_PB_RISERATE   = '19b1000f-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_HANG_DUR      = '19b10011-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_HANG_THR      = '19b10012-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_SNAP_BOOST    = '19b10013-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_SNAP_DUR      = '19b10014-e8f2-537e-4f6c-d104768a1214';
 
-</body></html>
+  // ── BLE операции в очереди ──
+  class BLEQueue {
+    constructor() { this.queue = []; this.busy = false; }
+    run(op) {
+      return new Promise((res, rej) => {
+        this.queue.push({ op, res, rej });
+        this.next();
+      });
+    }
+    async next() {
+      if (this.busy || !this.queue.length) return;
+      this.busy = true;
+      await new Promise(r => setTimeout(r, 10));
+      const { op, res, rej } = this.queue.shift();
+      try { res(await op()); } catch(e) { rej(e); } finally { this.busy = false; this.next(); }
+    }
+  }
+  const q = new BLEQueue();
+
+  // ── Состояние ──
+  let bleDevice, service;
+  let charSensor, charCommand, charCoefs, charDefCoefs;
+  let charACoef1, charAStep1, charACoef2, charAStep2;
+  let charBikeLock = null;
+  let charFW = {};
+  let bikeLockStatus = false;
+
+  // ── Вспомогательные функции ──
+  async function tryGetChar(uuid) {
+    try { return await service.getCharacteristic(uuid); }
+    catch { return null; }
+  }
+
+  function show(id) { document.getElementById(id).style.display = 'block'; }
+
+  function updateSliderBg(el, color = '#2a86d6') {
+    const pct = (el.value - el.min) / (el.max - el.min) * 100;
+    el.style.background = `linear-gradient(to right, ${color} ${pct}%, #d3d3d3 ${pct}%)`;
+  }
+
+  function bindSlider(id, valId, color) {
+    const el = document.getElementById(id);
+    const vl = document.getElementById(valId);
+    el.addEventListener('input', () => {
+      vl.textContent = el.value;
+      updateSliderBg(el, color);
+    });
+    vl.textContent = el.value;
+    updateSliderBg(el, color);
+    return el;
+  }
+
+  // ── Инициализация слайдеров ──
+  const slider1 = bindSlider('slider1', 'val1');
+  const slider3 = bindSlider('slider3', 'val3');
+  const slider4 = bindSlider('slider4', 'val4');
+  bindSlider('volSlider',    'volVal',    '#f59e0b');
+  bindSlider('freqMinSlider','freqMinVal','#3b82f6');
+  bindSlider('freqMaxSlider','freqMaxVal','#ef4444');
+
+  ['fw_riseLoaded','fw_fallLoaded','fw_riseUnloaded','fw_fallUnloaded',
+   'fw_pbThreshold','fw_pbRiseRate','fw_hangDuration','fw_hangThreshold',
+   'fw_snapBoost','fw_snapDuration'].forEach(id => bindSlider(id, id+'_val'));
+
+  // ── Звук двигателя ──
+  let audioCtx = null, oscillator = null, gainNode = null;
+  let masterVol = 0.5, freqMin = 40, freqMax = 300;
+
+  function initAudio() {
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    oscillator = audioCtx.createOscillator();
+    gainNode = audioCtx.createGain();
+    const filter = audioCtx.createBiquadFilter();
+    filter.type = 'lowpass';
+    filter.frequency.setValueAtTime(600, audioCtx.currentTime);
+    oscillator.type = document.getElementById('waveType').value;
+    gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    oscillator.connect(filter);
+    filter.connect(gainNode);
+    gainNode.connect(audioCtx.destination);
+    oscillator.start();
+  }
+
+  let lastSound = 0;
+  function updateEngineSound(v, minV, maxV) {
+    if (!audioCtx || !oscillator) return;
+    const now = performance.now();
+    if (now - lastSound < 20) return;
+    lastSound = now;
+    const norm = Math.max(0, Math.min(1, (v - minV) / (maxV - minV)));
+    oscillator.frequency.setTargetAtTime(freqMin + norm * (freqMax - freqMin), audioCtx.currentTime, 0.05);
+    gainNode.gain.setTargetAtTime(v === 0 ? 0 : masterVol * (0.2 + norm * 0.8), audioCtx.currentTime, 0.05);
+  }
+
+  function saveAudioSettings() {
+    localStorage.setItem('audioSettings', JSON.stringify({
+      masterVol, freqMin, freqMax,
+      wave: document.getElementById('waveType').value
+    }));
+  }
+
+  function loadAudioSettings() {
+    const s = JSON.parse(localStorage.getItem('audioSettings') || 'null');
+    if (!s) return;
+    masterVol = s.masterVol; freqMin = s.freqMin; freqMax = s.freqMax;
+    document.getElementById('volSlider').value = masterVol * 100;
+    document.getElementById('freqMinSlider').value = freqMin;
+    document.getElementById('freqMaxSlider').value = freqMax;
+    if (s.wave) document.getElementById('waveType').value = s.wave;
+    ['volSlider','freqMinSlider','freqMaxSlider'].forEach(id => {
+      const el = document.getElementById(id);
+      const colors = { volSlider:'#f59e0b', freqMinSlider:'#3b82f6', freqMaxSlider:'#ef4444' };
+      updateSliderBg(el, colors[id]);
+      document.getElementById(id.replace('Slider','Val') || id+'Val').textContent = el.value;
+    });
+    document.getElementById('volVal').textContent = document.getElementById('volSlider').value;
+    document.getElementById('freqMinVal').textContent = freqMin;
+    document.getElementById('freqMaxVal').textContent = freqMax;
+  }
+
+  document.getElementById('volSlider').addEventListener('input', e => {
+    masterVol = e.target.value / 100;
+    saveAudioSettings();
+  });
+  document.getElementById('freqMinSlider').addEventListener('input', e => {
+    freqMin = parseInt(e.target.value);
+    saveAudioSettings();
+  });
+  document.getElementById('freqMaxSlider').addEventListener('input', e => {
+    freqMax = parseInt(e.target.value);
+    saveAudioSettings();
+  });
+  document.getElementById('waveType').addEventListener('change', e => {
+    if (oscillator) oscillator.type = e.target.value;
+    saveAudioSettings();
+  });
+
+  loadAudioSettings();
+
+  // ── График ──
+  const defaultClutch = [0,6,14,30,54,71,81,86,90,94,100];
+  const defaultGas    = [0,18,28,37,45,53,61,70,80,90,100];
+
+  const chartCfg = {
+    type: 'line',
+    options: {
+      plugins: { datalabels: { display: false } },
+      scales: {
+        x: { type: 'linear', min: 0, max: 100, ticks: { display: false }, grid: { display: true } },
+        y: { min: 0, max: 100, ticks: { display: false }, grid: { display: true } }
+      }
+    },
+    data: {
+      labels: Array.from({length:11}, (_,i) => `P${i}`),
+      datasets: [
+        {
+          label: 'Clutch',
+          data: JSON.parse(localStorage.getItem('chartDataClutch')) ||
+                defaultClutch.map((y,i) => ({ x: i*10, y })),
+          fill: true, tension: 0.4, borderWidth: 2, pointHitRadius: 25
+        },
+        {
+          label: 'Gas',
+          data: JSON.parse(localStorage.getItem('chartDataGas')) ||
+                defaultGas.map((y,i) => ({ x: i*10, y })),
+          fill: true, tension: 0.4, borderWidth: 2, pointHitRadius: 25
+        }
+      ]
+    }
+  };
+
+  let myChart;
+  window.addEventListener('load', () => {
+    const ctx = document.getElementById('chartJSContainer').getContext('2d');
+    myChart = new Chart(ctx, chartCfg);
+    myChart.options.plugins.dragData = {
+      onDragEnd: () => {
+        localStorage.setItem('chartDataClutch', JSON.stringify(myChart.data.datasets[0].data));
+        localStorage.setItem('chartDataGas',    JSON.stringify(myChart.data.datasets[1].data));
+      }
+    };
+  });
+
+  async function fetchChartFromBle() {
+    const val = await q.run(() => charCoefs.readValue());
+    const arr = new Float64Array(val.buffer);
+    if (arr.length === 22) {
+      myChart.data.datasets[0].data = Array.from(arr).slice(0,11).map((y,i) => ({ x:i*10, y }));
+      myChart.data.datasets[1].data = Array.from(arr).slice(11,22).map((y,i) => ({ x:i*10, y }));
+      myChart.update();
+    }
+  }
+
+  async function sendChartToBle() {
+    const combined = new Float64Array([
+      ...myChart.data.datasets[0].data.map(p => p.y),
+      ...myChart.data.datasets[1].data.map(p => p.y)
+    ]);
+    await q.run(() => charCoefs.writeValue(new Uint8Array(combined.buffer)));
+  }
+
+  // ── Загрузка / сохранение слайдеров v1 ──
+  async function loadSlidersFromBle() {
+    try {
+      const c1 = await q.run(() => charACoef1.readValue());
+      slider1.value = Math.round(new Float32Array(c1.buffer)[0] * 100);
+      document.getElementById('val1').textContent = slider1.value;
+      updateSliderBg(slider1);
+
+      const c2 = await q.run(() => charACoef2.readValue());
+      slider3.value = Math.round(new Float32Array(c2.buffer)[0] * 100);
+      document.getElementById('val3').textContent = slider3.value;
+      updateSliderBg(slider3);
+
+      const s2 = await q.run(() => charAStep2.readValue());
+      slider4.value = new Int16Array(s2.buffer)[0];
+      document.getElementById('val4').textContent = slider4.value;
+      updateSliderBg(slider4);
+    } catch(e) { console.error('loadSliders:', e); }
+  }
+
+  slider1.addEventListener('input', () => {
+    q.run(() => charACoef1.writeValue(new Float32Array([slider1.value/100])));
+  });
+  slider3.addEventListener('input', () => {
+    q.run(() => charACoef2.writeValue(new Float32Array([slider3.value/100])));
+  });
+  slider4.addEventListener('input', () => {
+    q.run(() => charAStep2.writeValue(new Int16Array([parseInt(slider4.value)])));
+  });
+
+  // ── Flywheel слайдеры v2 ──
+  const fwSliders = [
+    { id: 'fw_riseLoaded',   uuid: UUID_FW_RISE_LOADED,   type: 'float' },
+    { id: 'fw_fallLoaded',   uuid: UUID_FW_FALL_LOADED,   type: 'float' },
+    { id: 'fw_riseUnloaded', uuid: UUID_FW_RISE_UNLOADED, type: 'float' },
+    { id: 'fw_fallUnloaded', uuid: UUID_FW_FALL_UNLOADED, type: 'float' },
+    { id: 'fw_pbThreshold',  uuid: UUID_FW_PB_THRESHOLD,  type: 'float' },
+    { id: 'fw_pbRiseRate',   uuid: UUID_FW_PB_RISERATE,   type: 'float' },
+    { id: 'fw_hangDuration', uuid: UUID_FW_HANG_DUR,      type: 'float' },
+    { id: 'fw_hangThreshold',uuid: UUID_FW_HANG_THR,      type: 'float' },
+    { id: 'fw_snapBoost',    uuid: UUID_FW_SNAP_BOOST,    type: 'float_pct' }, // 100-200 → 1.0-2.0
+    { id: 'fw_snapDuration', uuid: UUID_FW_SNAP_DUR,      type: 'float' },
+  ];
+
+  async function loadFWSliders() {
+    for (const s of fwSliders) {
+      try {
+        const ch = charFW[s.id];
+        if (!ch) continue;
+        const val = await q.run(() => ch.readValue());
+        const f = new Float32Array(val.buffer)[0];
+        const el = document.getElementById(s.id);
+        el.value = s.type === 'float_pct' ? Math.round(f * 100) : Math.round(f);
+        document.getElementById(s.id + '_val').textContent = el.value;
+        updateSliderBg(el);
+      } catch(e) { console.error('loadFW', s.id, e); }
+    }
+  }
+
+  fwSliders.forEach(s => {
+    document.getElementById(s.id).addEventListener('input', () => {
+      const ch = charFW[s.id];
+      if (!ch) return;
+      const v = parseFloat(document.getElementById(s.id).value);
+      const f = s.type === 'float_pct' ? v / 100 : v;
+      q.run(() => ch.writeValue(new Float32Array([f])));
+    });
+  });
+
+  // ── Bike Lock ──
+  function updateBikeLockBtn() {
+    const btn = document.getElementById('bikeLockButton');
+    btn.classList.toggle('button-red', bikeLockStatus);
+    btn.textContent = bikeLockStatus ? 'Unlock Bike' : 'Lock Bike';
+  }
+
+  async function fetchBikeLock() {
+    const val = await q.run(() => charBikeLock.readValue());
+    bikeLockStatus = new Int8Array(val.buffer)[0] !== 0;
+    updateBikeLockBtn();
+  }
+
+  document.getElementById('bikeLockButton').addEventListener('click', async () => {
+    await q.run(() => charBikeLock.writeValue(new Uint8Array([bikeLockStatus ? 0 : 1])));
+    await fetchBikeLock();
+  });
+
+  // ── Команды калибровки ──
+  function bindCmd(btnId, cmd) {
+    document.getElementById(btnId).addEventListener('click', () => {
+      if (charCommand) q.run(() => charCommand.writeValue(new TextEncoder().encode(cmd)));
+    });
+  }
+  bindCmd('savePressedButton',  'Fully Pressed A0');
+  bindCmd('saveReleasedButton', 'Fully Released A0');
+  bindCmd('savePressedButtonA1','Fully Pressed A1');
+  bindCmd('saveReleasedButtonA1','Fully Released A1');
+
+  // ── Уведомления с датчиков ──
+  function onSensorData(e) {
+    const parts = new TextDecoder().decode(e.target.value).split(',');
+    if (parts.length < 6) return;
+    const curA0 = parseFloat(parts[0]);
+    const curA1 = parseFloat(parts[3]);
+    const prsA1 = parseFloat(parts[4]);
+    const relA1 = parseFloat(parts[5]);
+
+    document.getElementById('voltageContainerA0').textContent = curA0;
+    document.getElementById('voltageContainerA1').textContent = curA1;
+    document.getElementById('fullyPressedValueA0').textContent  = parts[1];
+    document.getElementById('fullyReleasedValueA0').textContent = parts[2];
+    document.getElementById('fullyPressedValueA1').textContent  = prsA1;
+    document.getElementById('fullyReleasedValueA1').textContent = relA1;
+
+    updateEngineSound(curA1, relA1, prsA1);
+
+    // Вертикальные линии на графике
+    const area   = myChart.chartArea;
+    const areaW  = area.right - area.left;
+    const areaH  = area.bottom - area.top;
+
+    const pctA1  = Math.max(0, Math.min(100, (curA1 - relA1) / (prsA1 - relA1) * 100));
+    const lineA1 = document.getElementById('verticalVoltageLine');
+    lineA1.style.left   = (area.left + pctA1 / 100 * areaW) + 'px';
+    lineA1.style.top    = area.top + 'px';
+    lineA1.style.height = areaH + 'px';
+
+    const prsA0  = parseFloat(parts[1]);
+    const relA0  = parseFloat(parts[2]);
+    const pctA0  = 100 - Math.max(0, Math.min(100, (curA0 - relA0) / (prsA0 - relA0) * 100));
+    const lineA0 = document.getElementById('verticalVoltageLineA0');
+    lineA0.style.left   = (area.left + pctA0 / 100 * areaW) + 'px';
+    lineA0.style.top    = area.top + 'px';
+    lineA0.style.height = areaH + 'px';
+  }
+
+  // ── Подключение ──
+  document.getElementById('connectBleButton').addEventListener('click', async () => {
+    try {
+      initAudio();
+      bleDevice = await navigator.bluetooth.requestDevice({
+        filters: [{ name: 'Stark_Clutch' }],
+        optionalServices: [SERVICE_UUID]
+      });
+      const server = await bleDevice.gatt.connect();
+      service = await server.getPrimaryService(SERVICE_UUID);
+
+      // 1. Сначала получаем ВСЕ характеристики (обязательные + опциональные)
+      charSensor   = await service.getCharacteristic(UUID_SENSOR);
+      charCommand  = await service.getCharacteristic(UUID_COMMAND);
+      charCoefs    = await service.getCharacteristic(UUID_COEFS);
+      charDefCoefs = await service.getCharacteristic(UUID_DEF_COEFS);
+      charACoef1   = await service.getCharacteristic(UUID_ACOEF1);
+      charAStep1   = await service.getCharacteristic(UUID_ASTEP1);
+      charACoef2   = await service.getCharacteristic(UUID_ACOEF2);
+      charAStep2   = await service.getCharacteristic(UUID_ASTEP2);
+
+      charBikeLock = await tryGetChar(UUID_BIKELOCK);
+
+      charFW['fw_riseLoaded']    = await tryGetChar(UUID_FW_RISE_LOADED);
+      if (charFW['fw_riseLoaded']) {
+        charFW['fw_fallLoaded']   = await tryGetChar(UUID_FW_FALL_LOADED);
+        charFW['fw_riseUnloaded'] = await tryGetChar(UUID_FW_RISE_UNLOADED);
+        charFW['fw_fallUnloaded'] = await tryGetChar(UUID_FW_FALL_UNLOADED);
+        charFW['fw_pbThreshold']  = await tryGetChar(UUID_FW_PB_THRESHOLD);
+        charFW['fw_pbRiseRate']   = await tryGetChar(UUID_FW_PB_RISERATE);
+        charFW['fw_hangDuration'] = await tryGetChar(UUID_FW_HANG_DUR);
+        charFW['fw_hangThreshold']= await tryGetChar(UUID_FW_HANG_THR);
+        charFW['fw_snapBoost']    = await tryGetChar(UUID_FW_SNAP_BOOST);
+        charFW['fw_snapDuration'] = await tryGetChar(UUID_FW_SNAP_DUR);
+      }
+
+      // 2. Показываем UI по найденным характеристикам
+      document.getElementById('bleState').textContent = 'Connected';
+      document.getElementById('bleState').style.color = '#24af24';
+
+      show('basicSection');
+      if (charBikeLock)              show('bikeLockSection');
+      if (charFW['fw_riseLoaded'])   show('flywheelSection');
+
+      // 3. Подписываемся на уведомления
+      charSensor.startNotifications();
+      charSensor.addEventListener('characteristicvaluechanged', onSensorData);
+
+      // 4. Грузим данные — каждый блок независимо
+      try { await fetchChartFromBle();  } catch(e) { console.error('chart:', e); }
+      try { await loadSlidersFromBle(); } catch(e) { console.error('sliders:', e); }
+      if (charBikeLock)            { try { await fetchBikeLock();  } catch(e) { console.error('bikeLock:', e); } }
+      if (charFW['fw_riseLoaded']) { try { await loadFWSliders();  } catch(e) { console.error('fw:', e); } }
+
+    } catch(e) {
+      document.getElementById('bleState').textContent = 'Failed: ' + e;
+      document.getElementById('bleState').style.color = '#d13a30';
+    }
+  });
+
+  // ── Отключение ──
+  document.getElementById('disconnectBleButton').addEventListener('click', () => {
+    if (bleDevice && bleDevice.gatt.connected) {
+      bleDevice.gatt.disconnect();
+    }
+    document.getElementById('bleState').textContent = 'Disconnected';
+    document.getElementById('bleState').style.color = '#d13a30';
+    document.getElementById('basicSection').style.display    = 'none';
+    document.getElementById('bikeLockSection').style.display = 'none';
+    document.getElementById('flywheelSection').style.display = 'none';
+    if (gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+  });
+
+  // ── Кнопки графика ──
+  document.getElementById('saveDropdownValue').addEventListener('click', sendChartToBle);
+  document.getElementById('loadDropdownValue').addEventListener('click', fetchChartFromBle);
+  document.getElementById('setDefaultValue').addEventListener('click', () => {
+    myChart.data.datasets[0].data = defaultClutch.map((y,i) => ({ x:i*10, y }));
+    myChart.data.datasets[1].data = defaultGas.map((y,i) => ({ x:i*10, y }));
+    myChart.update();
+  });
+</script>
+</body>
+</html>
