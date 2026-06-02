@@ -99,7 +99,6 @@
 
     <!-- График кривых -->
     <div class="card">
-      <h3>Pedal Curves</h3>
       <div class="chart-container">
         <canvas id="chartJSContainer"></canvas>
         <div id="verticalVoltageLine"></div>
@@ -116,7 +115,6 @@
 
     <!-- Старые ползунки фильтра -->
     <div class="card">
-      <h3>Filter</h3>
       <label>Flywheel Acceleration</label>
       <div class="slider-row">
         <input type="range" id="slider1" min="1" max="30" value="15">
@@ -694,7 +692,8 @@
       charSensor.startNotifications();
       charSensor.addEventListener('characteristicvaluechanged', onSensorData);
 
-      // 4. Грузим данные — каждый блок независимо
+      // 4. Грузим данные — небольшая задержка чтобы BLE успел установиться
+      await new Promise(r => setTimeout(r, 800));
       try { await fetchChartFromBle();  } catch(e) { console.error('chart:', e); }
       try { await loadSlidersFromBle(); } catch(e) { console.error('sliders:', e); }
       if (charBikeLock)            { try { await fetchBikeLock();  } catch(e) { console.error('bikeLock:', e); } }
