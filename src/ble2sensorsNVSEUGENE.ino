@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.3.0"
+#define FW_VERSION "2.4.0"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
