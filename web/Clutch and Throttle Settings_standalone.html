@@ -58,10 +58,35 @@
       h1 { font-size: 22px; }
       button { font-size: 13px; }
     }
-    .badge-new {
-      display: inline-block; background: #4CAF50; color: white;
-      font-size: 11px; padding: 2px 7px; border-radius: 10px;
-      margin-left: 8px; vertical-align: middle;
+    button.info-btn {
+      display: inline-flex !important; align-items: center; justify-content: center;
+      width: 22px !important; height: 22px !important;
+      min-width: 22px !important; max-width: 22px !important;
+      border-radius: 50% !important; padding: 0 !important;
+      margin: 0 0 0 8px !important; box-sizing: border-box !important;
+      background: #e53935 !important; color: white !important;
+      font-size: 13px !important; font-weight: bold !important;
+      font-style: italic !important; font-family: Georgia, serif !important;
+      cursor: pointer; vertical-align: middle;
+      border: none !important; flex-shrink: 0; line-height: 22px !important;
+    }
+    button.info-btn:hover { background: #c62828 !important; }
+    .info-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,0.4); z-index: 100;
+      align-items: center; justify-content: center;
+    }
+    .info-overlay.active { display: flex; }
+    .info-box {
+      background: white; border-radius: 12px; padding: 20px;
+      max-width: 340px; margin: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .info-box h4 { margin: 0 0 10px; font-size: 16px; color: #333; }
+    .info-box p  { margin: 0 0 8px; font-size: 14px; color: #555; line-height: 1.5; }
+    .info-box .close-btn {
+      margin-top: 12px; width: 100%; padding: 8px;
+      background: #2a86d6; color: white; border: none;
+      border-radius: 6px; cursor: pointer; font-size: 14px;
     }
     #verticalVoltageLine {
       position: absolute;
@@ -76,6 +101,29 @@
   </style>
 </head>
 <body>
+<!-- Emergency confirm overlay -->
+<div class="info-overlay" id="emergencyOverlay">
+  <div class="info-box">
+    <h4 style="color:#e53935;">⚠ Emergency Limp Mode</h4>
+    <p>Use this mode only when the throttle is broken and you need to get home.</p>
+    <p>The clutch lever will control the throttle — <b>fully pressed = 10% power</b>.</p>
+    <p style="color:#e53935; font-weight:bold;">⚠ Dangerous — do not ride at speed. Limp home only.</p>
+    <div style="display:flex; gap:8px; margin-top:12px;">
+      <button id="emergencyYes" style="flex:1; padding:10px; background:#e53935; color:white; border:none; border-radius:6px; font-size:15px; cursor:pointer; font-weight:bold;">Yes, Enable</button>
+      <button id="emergencyNo"  style="flex:1; padding:10px; background:#888; color:white; border:none; border-radius:6px; font-size:15px; cursor:pointer;">No, Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- Info popup overlay -->
+<div class="info-overlay" id="infoOverlay">
+  <div class="info-box">
+    <h4 id="infoTitle"></h4>
+    <div id="infoText"></div>
+    <button class="close-btn" onclick="document.getElementById('infoOverlay').classList.remove('active')">Close</button>
+  </div>
+</div>
+
 <div class="container">
 
   <h1>Stark Clutch</h1>
@@ -97,7 +145,7 @@
   <!-- ── Базовый блок (любая прошивка) ── -->
   <div id="basicSection" class="section">
 
-    <!-- График кривых -->
+    <!-- График -->
     <div class="card">
       <div class="chart-container">
         <canvas id="chartJSContainer"></canvas>
@@ -113,22 +161,77 @@
       </div>
     </div>
 
-    <!-- Старые ползунки фильтра -->
-    <div class="card">
-      <label>Flywheel Acceleration</label>
-      <div class="slider-row">
-        <input type="range" id="slider1" min="1" max="30" value="15">
-        <span class="slider-value" id="val1">15</span>
+    <!-- Legacy слайдеры (старая прошивка) -->
+    <div id="legacyFilterSection" class="section">
+      <div class="card">
+        <label>Flywheel Acceleration</label>
+        <div class="slider-row">
+          <input type="range" id="slider1" min="1" max="30" value="15">
+          <span class="slider-value" id="val1">15</span>
+        </div>
+        <label>Flywheel Deceleration</label>
+        <div class="slider-row">
+          <input type="range" id="slider3" min="1" max="30" value="15">
+          <span class="slider-value" id="val3">15</span>
+        </div>
+        <label>Clutch Engagement Speed</label>
+        <div class="slider-row">
+          <input type="range" id="slider4" min="1" max="81" value="15">
+          <span class="slider-value" id="val4">15</span>
+        </div>
       </div>
-      <label>Flywheel Deceleration</label>
-      <div class="slider-row">
-        <input type="range" id="slider3" min="1" max="30" value="15">
-        <span class="slider-value" id="val3">15</span>
+    </div>
+
+    <!-- Flywheel v2 слайдеры (новая прошивка) -->
+    <div id="flywheelSection" class="section">
+      <div class="card">
+        <h3>Flywheel Effect <button class="info-btn" onclick="showInfo('Flywheel Effect','<p>Simulates the inertia of a flywheel — the engine cannot change speed instantly.</p><p><b>Acceleration Under Load (clutch released):</b> how slowly the throttle signal rises when the wheel is connected. Low value = heavy flywheel feel.</p><p><b>Deceleration Under Load:</b> how slowly it falls when you close the throttle under load.</p><p><b>Acceleration Under No Load (clutch pressed):</b> how fast the engine revs up freely with the clutch in.</p><p><b>Deceleration Under No Load:</b> how fast revs drop with clutch pressed.</p>')">i</button></h3>
+        <label>Flywheel Acceleration Under Load (clutch released)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_riseLoaded" min="1" max="200" value="5">
+          <span class="slider-value" id="fw_riseLoaded_val">5</span>
+        </div>
+        <label>Flywheel Deceleration Under Load (clutch released)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_fallLoaded" min="1" max="200" value="8">
+          <span class="slider-value" id="fw_fallLoaded_val">8</span>
+        </div>
+        <label>Flywheel Acceleration Under No Load (clutch pressed)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_riseUnloaded" min="1" max="500" value="30">
+          <span class="slider-value" id="fw_riseUnloaded_val">30</span>
+        </div>
+        <label>Flywheel Deceleration Under No Load (clutch pressed)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_fallUnloaded" min="1" max="500" value="50">
+          <span class="slider-value" id="fw_fallUnloaded_val">50</span>
+        </div>
       </div>
-      <label>Clutch Engagement Speed</label>
-      <div class="slider-row">
-        <input type="range" id="slider4" min="1" max="81" value="15">
-        <span class="slider-value" id="val4">15</span>
+      <div class="card">
+        <h3>Rev Hang <button class="info-btn" onclick="showInfo('Rev Hang','<p>On a 2-stroke, revs do not drop immediately when you quickly pull the clutch — they hang for a moment before falling.</p><p><b>Hang Duration:</b> how long (ms) the revs stay high after a fast clutch pull. 0 = no hang, 300 = noticeable hang.</p><p><b>Hang Threshold:</b> how fast you must pull the clutch to trigger the effect. Low = triggers even on slow pull. High = only on a sharp snap.</p>')">i</button></h3>
+        <label>Hang duration (ms)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_hangDuration" min="0" max="500" value="200">
+          <span class="slider-value" id="fw_hangDuration_val">200</span>
+        </div>
+        <label>Hang threshold (clutch pull speed)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_hangThreshold" min="1" max="50" value="15">
+          <span class="slider-value" id="fw_hangThreshold_val">15</span>
+        </div>
+      </div>
+      <div class="card">
+        <h3>Clutch Snap <button class="info-btn" onclick="showInfo('Clutch Snap','<p>When you release the clutch lever sharply with high revs, there is a brief torque spike — this is what lifts the front wheel.</p><p><b>Snap Boost:</b> how much the signal spikes on snap release. 130 = +30% boost at the moment of release.</p><p><b>Snap Duration:</b> how long (ms) the boost takes to decay back to normal. 100ms = sharp hit, 300ms = sustained pull.</p><p>Snap only triggers if revs are already above a minimum level.</p>')">i</button></h3>
+        <label>Snap boost (%)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_snapBoost" min="100" max="200" value="130">
+          <span class="slider-value" id="fw_snapBoost_val">130</span>
+        </div>
+        <label>Snap duration (ms)</label>
+        <div class="slider-row">
+          <input type="range" id="fw_snapFall" min="10" max="500" value="100">
+          <span class="slider-value" id="fw_snapFall_val">100</span>
+        </div>
       </div>
     </div>
 
@@ -181,7 +284,6 @@
         <button id="savePressedButton">Save Clutch Pressed</button>
         <button id="saveReleasedButton">Save Clutch Released</button>
       </div>
-
       <h3 style="margin-top:16px;">Throttle Calibration</h3>
       <p style="font-size:14px;">
         Value: <span id="voltageContainerA1">-</span> &nbsp;|&nbsp;
@@ -196,84 +298,12 @@
 
   </div><!-- /basicSection -->
 
-  <!-- ── Блок Flywheel v2 (появляется если найдена характеристика 000A) ── -->
-  <div id="flywheelSection" class="section">
+  <!-- ── Аварийный режим ── -->
+  <div id="emergencySection" class="section">
     <div class="card">
-      <h3>2-Stroke Flywheel Effect <span class="badge-new">v2</span></h3>
-
-      <label>Rise under load (clutch released)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_riseLoaded" min="1" max="100" value="5">
-        <span class="slider-value" id="fw_riseLoaded_val">5</span>
-      </div>
-
-      <label>Fall under load (clutch released)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_fallLoaded" min="1" max="100" value="8">
-        <span class="slider-value" id="fw_fallLoaded_val">8</span>
-      </div>
-
-      <label>Rise unloaded (clutch pressed)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_riseUnloaded" min="1" max="200" value="30">
-        <span class="slider-value" id="fw_riseUnloaded_val">30</span>
-      </div>
-
-      <label>Fall unloaded (clutch pressed)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_fallUnloaded" min="1" max="200" value="50">
-        <span class="slider-value" id="fw_fallUnloaded_val">50</span>
-      </div>
+      <button id="emergencyButton" class="button-full">Emergency Limp Mode: OFF</button>
     </div>
-
-    <div class="card">
-      <h3>Powerband <span class="badge-new">v2</span></h3>
-
-      <label>Powerband threshold (%)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_pbThreshold" min="0" max="100" value="40">
-        <span class="slider-value" id="fw_pbThreshold_val">40</span>
-      </div>
-
-      <label>Powerband rise rate</label>
-      <div class="slider-row">
-        <input type="range" id="fw_pbRiseRate" min="1" max="200" value="80">
-        <span class="slider-value" id="fw_pbRiseRate_val">80</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Rev Hang <span class="badge-new">v2</span></h3>
-
-      <label>Hang duration (ms)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_hangDuration" min="0" max="500" value="200">
-        <span class="slider-value" id="fw_hangDuration_val">200</span>
-      </div>
-
-      <label>Hang threshold (clutch pull speed)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_hangThreshold" min="1" max="50" value="15">
-        <span class="slider-value" id="fw_hangThreshold_val">15</span>
-      </div>
-    </div>
-
-    <div class="card">
-      <h3>Clutch Snap <span class="badge-new">v2</span></h3>
-
-      <label>Snap boost (%)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_snapBoost" min="100" max="200" value="130">
-        <span class="slider-value" id="fw_snapBoost_val">130</span>
-      </div>
-
-      <label>Snap duration (ms)</label>
-      <div class="slider-row">
-        <input type="range" id="fw_snapDuration" min="0" max="300" value="80">
-        <span class="slider-value" id="fw_snapDuration_val">80</span>
-      </div>
-    </div>
-  </div><!-- /flywheelSection -->
+  </div>
 
 </div><!-- /container -->
 
@@ -446,6 +476,15 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
 </script>
 
 <script>
+  function showInfo(title, html) {
+    document.getElementById('infoTitle').textContent = title;
+    document.getElementById('infoText').innerHTML = html;
+    document.getElementById('infoOverlay').classList.add('active');
+  }
+  document.getElementById('infoOverlay').addEventListener('click', function(e) {
+    if (e.target === this) this.classList.remove('active');
+  });
+
   // ── BLE UUIDs ──
   const SERVICE_UUID        = '19b10000-e8f2-537e-4f6c-d104768a1214';
   const UUID_SENSOR         = '19b10001-e8f2-537e-4f6c-d104768a1214';
@@ -457,17 +496,16 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
   const UUID_ACOEF2         = '19b10008-e8f2-537e-4f6c-d104768a1214';
   const UUID_ASTEP2         = '19b10009-e8f2-537e-4f6c-d104768a1214';
   const UUID_BIKELOCK       = '19b10010-e8f2-537e-4f6c-d104768a1214';
+  const UUID_EMERGENCY      = '19b10016-e8f2-537e-4f6c-d104768a1214';
   // v2 flywheel UUIDs
   const UUID_FW_RISE_LOADED   = '19b1000a-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_FALL_LOADED   = '19b1000b-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_RISE_UNLOADED = '19b1000c-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_FALL_UNLOADED = '19b1000d-e8f2-537e-4f6c-d104768a1214';
-  const UUID_FW_PB_THRESHOLD  = '19b1000e-e8f2-537e-4f6c-d104768a1214';
-  const UUID_FW_PB_RISERATE   = '19b1000f-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_HANG_DUR      = '19b10011-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_HANG_THR      = '19b10012-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_SNAP_BOOST    = '19b10013-e8f2-537e-4f6c-d104768a1214';
-  const UUID_FW_SNAP_DUR      = '19b10014-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_SNAP_FALL     = '19b10015-e8f2-537e-4f6c-d104768a1214';
 
   // ── BLE операции в очереди ──
   class BLEQueue {
@@ -491,8 +529,10 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
   // ── Состояние ──
   let bleDevice, service;
   let charSensor, charCommand, charCoefs, charDefCoefs;
-  let charACoef1, charAStep1, charACoef2, charAStep2;
+  let charACoef1 = null, charAStep1 = null, charACoef2 = null, charAStep2 = null;
   let charBikeLock = null;
+  let charEmergency = null;
+  let emergencyActive = false;
   let charFW = {};
   let bikeLockStatus = false;
 
@@ -512,6 +552,7 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
   function bindSlider(id, valId, color) {
     const el = document.getElementById(id);
     const vl = document.getElementById(valId);
+    if (!el || !vl) return null;
     el.addEventListener('input', () => {
       vl.textContent = el.value;
       updateSliderBg(el, color);
@@ -522,16 +563,19 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
   }
 
   // ── Инициализация слайдеров ──
-  const slider1 = bindSlider('slider1', 'val1');
-  const slider3 = bindSlider('slider3', 'val3');
-  const slider4 = bindSlider('slider4', 'val4');
   bindSlider('volSlider',    'volVal',    '#f59e0b');
   bindSlider('freqMinSlider','freqMinVal','#3b82f6');
   bindSlider('freqMaxSlider','freqMaxVal','#ef4444');
 
+  ['slider1','slider3','slider4'].forEach(id => {
+    const el = document.getElementById(id);
+    const vid = id === 'slider1' ? 'val1' : id === 'slider3' ? 'val3' : 'val4';
+    if (el) { el.addEventListener('input', () => { document.getElementById(vid).textContent = el.value; updateSliderBg(el); }); }
+  });
+
   ['fw_riseLoaded','fw_fallLoaded','fw_riseUnloaded','fw_fallUnloaded',
-   'fw_pbThreshold','fw_pbRiseRate','fw_hangDuration','fw_hangThreshold',
-   'fw_snapBoost','fw_snapDuration'].forEach(id => bindSlider(id, id+'_val'));
+   'fw_hangDuration','fw_hangThreshold',
+   'fw_snapBoost','fw_snapFall'].forEach(id => bindSlider(id, id+'_val'));
 
   // ── Звук двигателя ──
   let audioCtx = null, oscillator = null, gainNode = null;
@@ -561,7 +605,7 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
     lastSound = now;
     const norm = Math.max(0, Math.min(1, (v - minV) / (maxV - minV)));
     oscillator.frequency.setTargetAtTime(freqMin + norm * (freqMax - freqMin), audioCtx.currentTime, 0.05);
-    gainNode.gain.setTargetAtTime(v === 0 ? 0 : masterVol * (0.2 + norm * 0.8), audioCtx.currentTime, 0.05);
+    gainNode.gain.setTargetAtTime(masterVol * (0.15 + norm * 0.85), audioCtx.currentTime, 0.05);
   }
 
   function saveAudioSettings() {
@@ -671,34 +715,40 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
     await q.run(() => charCoefs.writeValue(new Uint8Array(combined.buffer)));
   }
 
-  // ── Загрузка / сохранение слайдеров v1 ──
-  async function loadSlidersFromBle() {
+
+  // ── Legacy слайдеры (старая прошивка) ──
+  async function loadLegacySlidersFromBle() {
     try {
       const c1 = await q.run(() => charACoef1.readValue());
-      slider1.value = Math.round(new Float32Array(c1.buffer)[0] * 100);
-      document.getElementById('val1').textContent = slider1.value;
-      updateSliderBg(slider1);
-
+      const s1 = document.getElementById('slider1');
+      s1.value = Math.round(new Float32Array(c1.buffer)[0] * 100);
+      document.getElementById('val1').textContent = s1.value;
+      updateSliderBg(s1);
+    } catch(e) {}
+    try {
       const c2 = await q.run(() => charACoef2.readValue());
-      slider3.value = Math.round(new Float32Array(c2.buffer)[0] * 100);
-      document.getElementById('val3').textContent = slider3.value;
-      updateSliderBg(slider3);
-
+      const s3 = document.getElementById('slider3');
+      s3.value = Math.round(new Float32Array(c2.buffer)[0] * 100);
+      document.getElementById('val3').textContent = s3.value;
+      updateSliderBg(s3);
+    } catch(e) {}
+    try {
       const s2 = await q.run(() => charAStep2.readValue());
-      slider4.value = new Int16Array(s2.buffer)[0];
-      document.getElementById('val4').textContent = slider4.value;
-      updateSliderBg(slider4);
-    } catch(e) { console.error('loadSliders:', e); }
+      const s4 = document.getElementById('slider4');
+      s4.value = new Int16Array(s2.buffer)[0];
+      document.getElementById('val4').textContent = s4.value;
+      updateSliderBg(s4);
+    } catch(e) {}
   }
 
-  slider1.addEventListener('input', () => {
-    q.run(() => charACoef1.writeValue(new Float32Array([slider1.value/100])));
+  document.getElementById('slider1').addEventListener('input', () => {
+    if (charACoef1) q.run(() => charACoef1.writeValue(new Float32Array([parseInt(document.getElementById('slider1').value)/100])));
   });
-  slider3.addEventListener('input', () => {
-    q.run(() => charACoef2.writeValue(new Float32Array([slider3.value/100])));
+  document.getElementById('slider3').addEventListener('input', () => {
+    if (charACoef2) q.run(() => charACoef2.writeValue(new Float32Array([parseInt(document.getElementById('slider3').value)/100])));
   });
-  slider4.addEventListener('input', () => {
-    q.run(() => charAStep2.writeValue(new Int16Array([parseInt(slider4.value)])));
+  document.getElementById('slider4').addEventListener('input', () => {
+    if (charAStep2) q.run(() => charAStep2.writeValue(new Int16Array([parseInt(document.getElementById('slider4').value)])));
   });
 
   // ── Flywheel слайдеры v2 ──
@@ -707,12 +757,10 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
     { id: 'fw_fallLoaded',   uuid: UUID_FW_FALL_LOADED,   type: 'float' },
     { id: 'fw_riseUnloaded', uuid: UUID_FW_RISE_UNLOADED, type: 'float' },
     { id: 'fw_fallUnloaded', uuid: UUID_FW_FALL_UNLOADED, type: 'float' },
-    { id: 'fw_pbThreshold',  uuid: UUID_FW_PB_THRESHOLD,  type: 'float' },
-    { id: 'fw_pbRiseRate',   uuid: UUID_FW_PB_RISERATE,   type: 'float' },
     { id: 'fw_hangDuration', uuid: UUID_FW_HANG_DUR,      type: 'float' },
     { id: 'fw_hangThreshold',uuid: UUID_FW_HANG_THR,      type: 'float' },
     { id: 'fw_snapBoost',    uuid: UUID_FW_SNAP_BOOST,    type: 'float_pct' }, // 100-200 → 1.0-2.0
-    { id: 'fw_snapDuration', uuid: UUID_FW_SNAP_DUR,      type: 'float' },
+    { id: 'fw_snapFall',     uuid: UUID_FW_SNAP_FALL,     type: 'float' },
   ];
 
   async function loadFWSliders() {
@@ -738,6 +786,43 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
       const f = s.type === 'float_pct' ? v / 100 : v;
       q.run(() => ch.writeValue(new Float32Array([f])));
     });
+  });
+
+  // ── Emergency Mode ──
+  function updateEmergencyBtn() {
+    const btn = document.getElementById('emergencyButton');
+    btn.classList.toggle('button-red', emergencyActive);
+    btn.textContent = emergencyActive ? 'Emergency Limp Mode: ON ⚠' : 'Emergency Limp Mode: OFF';
+  }
+
+  async function fetchEmergencyMode() {
+    const val = await q.run(() => charEmergency.readValue());
+    emergencyActive = val.getUint8(0) !== 0;
+    updateEmergencyBtn();
+  }
+
+  async function setEmergencyMode(val) {
+    emergencyActive = val;
+    await q.run(() => charEmergency.writeValue(new Uint8Array([val ? 1 : 0])));
+    updateEmergencyBtn();
+  }
+
+  document.getElementById('emergencyButton').addEventListener('click', () => {
+    if (!charEmergency) return;
+    if (emergencyActive) {
+      setEmergencyMode(false);
+    } else {
+      document.getElementById('emergencyOverlay').classList.add('active');
+    }
+  });
+
+  document.getElementById('emergencyYes').addEventListener('click', () => {
+    document.getElementById('emergencyOverlay').classList.remove('active');
+    setEmergencyMode(true);
+  });
+
+  document.getElementById('emergencyNo').addEventListener('click', () => {
+    document.getElementById('emergencyOverlay').classList.remove('active');
   });
 
   // ── Bike Lock ──
@@ -785,7 +870,12 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
     document.getElementById('fullyPressedValueA1').textContent  = prsA1;
     document.getElementById('fullyReleasedValueA1').textContent = relA1;
 
-    updateEngineSound(curA1, relA1, prsA1);
+    const outputFinal = parts.length > 6 ? parseFloat(parts[6]) : null;
+    if (outputFinal !== null) {
+      updateEngineSound(outputFinal, 0, 100);
+    } else {
+      updateEngineSound(curA1, relA1, prsA1);
+    }
 
     // Вертикальные линии на графике
     const area   = myChart.chartArea;
@@ -823,24 +913,24 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
       charCommand  = await service.getCharacteristic(UUID_COMMAND);
       charCoefs    = await service.getCharacteristic(UUID_COEFS);
       charDefCoefs = await service.getCharacteristic(UUID_DEF_COEFS);
-      charACoef1   = await service.getCharacteristic(UUID_ACOEF1);
-      charAStep1   = await service.getCharacteristic(UUID_ASTEP1);
-      charACoef2   = await service.getCharacteristic(UUID_ACOEF2);
-      charAStep2   = await service.getCharacteristic(UUID_ASTEP2);
 
-      charBikeLock = await tryGetChar(UUID_BIKELOCK);
+      // Legacy слайдеры (старая прошивка)
+      charACoef1 = await tryGetChar(UUID_ACOEF1);
+      charACoef2 = await tryGetChar(UUID_ACOEF2);
+      charAStep2 = await tryGetChar(UUID_ASTEP2);
+
+      charBikeLock  = await tryGetChar(UUID_BIKELOCK);
+      charEmergency = await tryGetChar(UUID_EMERGENCY);
 
       charFW['fw_riseLoaded']    = await tryGetChar(UUID_FW_RISE_LOADED);
       if (charFW['fw_riseLoaded']) {
         charFW['fw_fallLoaded']   = await tryGetChar(UUID_FW_FALL_LOADED);
         charFW['fw_riseUnloaded'] = await tryGetChar(UUID_FW_RISE_UNLOADED);
         charFW['fw_fallUnloaded'] = await tryGetChar(UUID_FW_FALL_UNLOADED);
-        charFW['fw_pbThreshold']  = await tryGetChar(UUID_FW_PB_THRESHOLD);
-        charFW['fw_pbRiseRate']   = await tryGetChar(UUID_FW_PB_RISERATE);
-        charFW['fw_hangDuration'] = await tryGetChar(UUID_FW_HANG_DUR);
+          charFW['fw_hangDuration'] = await tryGetChar(UUID_FW_HANG_DUR);
         charFW['fw_hangThreshold']= await tryGetChar(UUID_FW_HANG_THR);
         charFW['fw_snapBoost']    = await tryGetChar(UUID_FW_SNAP_BOOST);
-        charFW['fw_snapDuration'] = await tryGetChar(UUID_FW_SNAP_DUR);
+        charFW['fw_snapFall']     = await tryGetChar(UUID_FW_SNAP_FALL);
       }
 
       // 2. Показываем UI по найденным характеристикам
@@ -848,8 +938,10 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
       document.getElementById('bleState').style.color = '#24af24';
 
       show('basicSection');
-      if (charBikeLock)              show('bikeLockSection');
-      if (charFW['fw_riseLoaded'])   show('flywheelSection');
+      if (charBikeLock)                                    show('bikeLockSection');
+      if (charEmergency)                                   show('emergencySection');
+      if (charACoef1 && !charFW['fw_riseLoaded'])          show('legacyFilterSection');
+      if (charFW['fw_riseLoaded'])                         show('flywheelSection');
 
       // 3. Подписываемся на уведомления
       charSensor.startNotifications();
@@ -858,9 +950,10 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
       // 4. Грузим данные — небольшая задержка чтобы BLE успел установиться
       await new Promise(r => setTimeout(r, 800));
       try { await fetchChartFromBle();  } catch(e) { console.error('chart:', e); }
-      try { await loadSlidersFromBle(); } catch(e) { console.error('sliders:', e); }
-      if (charBikeLock)            { try { await fetchBikeLock();  } catch(e) { console.error('bikeLock:', e); } }
-      if (charFW['fw_riseLoaded']) { try { await loadFWSliders();  } catch(e) { console.error('fw:', e); } }
+      if (charBikeLock)            { try { await fetchBikeLock();           } catch(e) { console.error('bikeLock:', e); } }
+      if (charEmergency)           { try { await fetchEmergencyMode();      } catch(e) { console.error('emergency:', e); } }
+      if (charACoef1)              { try { await loadLegacySlidersFromBle();} catch(e) { console.error('legacy:', e); } }
+      if (charFW['fw_riseLoaded']) { try { await loadFWSliders();           } catch(e) { console.error('fw:', e); } }
 
     } catch(e) {
       document.getElementById('bleState').textContent = 'Failed: ' + e;
@@ -875,9 +968,11 @@ Z.prototype.chain=tf,Z.prototype.commit=rf,Z.prototype.next=ef,Z.prototype.plant
     }
     document.getElementById('bleState').textContent = 'Disconnected';
     document.getElementById('bleState').style.color = '#d13a30';
-    document.getElementById('basicSection').style.display    = 'none';
-    document.getElementById('bikeLockSection').style.display = 'none';
-    document.getElementById('flywheelSection').style.display = 'none';
+    document.getElementById('basicSection').style.display       = 'none';
+    document.getElementById('bikeLockSection').style.display    = 'none';
+    document.getElementById('emergencySection').style.display   = 'none';
+    document.getElementById('legacyFilterSection').style.display = 'none';
+    document.getElementById('flywheelSection').style.display    = 'none';
     if (gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
   });
 
