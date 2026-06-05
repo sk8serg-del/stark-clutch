@@ -620,13 +620,14 @@ void loop() {
   }
 
   // ── 11. Serial Plotter ──
-  Serial.print("Clutch:");      Serial.print(filtA0);
-  Serial.print(",C_pressed:");  Serial.print(fullyPressedNVSValueA0);
-  Serial.print(",C_released:"); Serial.print(fullyReleasedNVSValueA0);
-  Serial.print(",Throttle:");   Serial.print(filtA1);
-  Serial.print(",T_pressed:");  Serial.print(fullyPressedNVSValueA1);
-  Serial.print(",T_released:"); Serial.print(fullyReleasedNVSValueA1);
-  Serial.print(",DAC:");        Serial.println((int)voltage3);
+  Serial.print("A0:");        Serial.print(filtA0);
+  Serial.print(",A0_max:");   Serial.print(fullyPressedNVSValueA0);
+  Serial.print(",A0_min:");   Serial.print(fullyReleasedNVSValueA0);
+  Serial.print(",A1:");       Serial.print(filtA1);
+  Serial.print(",A1_max:");   Serial.print(fullyPressedNVSValueA1);
+  Serial.print(",A1_min:");   Serial.print(fullyReleasedNVSValueA1);
+  Serial.print(",DAC:");      Serial.print((int)voltage3);
+  Serial.print(",FW:");       Serial.println(FW_VERSION);
 
   delay(5);
 }
