@@ -16,7 +16,17 @@ GFilterRA analog1;
 GFilterRA analog2;
 GFilterRA analog3;
 
-Adafruit_MCP4725 dac;
+// ── DAC (MCP4725) — broadcast на все адреса ──
+static const uint8_t DAC_ADDRS[4] = {0x60, 0x61, 0x62, 0x63};
+Adafruit_MCP4725 dacs[4];
+
+void initDacs() {
+  for (uint8_t i = 0; i < 4; i++) dacs[i].begin(DAC_ADDRS[i]);
+}
+
+void dacSetVoltage(uint16_t value) {
+  for (uint8_t i = 0; i < 4; i++) dacs[i].setVoltage(value, false, 400000);
+}
 
 // ── Кривые педалей ──
 double x[]    = { 0,1,2,3,4,5,6,7,8,9,10 };
@@ -328,7 +338,7 @@ void setup() {
   pinMode(Hall, INPUT);
   pinMode(G1,   INPUT);
 
-  dac.begin(0x60);
+  initDacs();
 
   initNVS();
   initFilters();
@@ -469,7 +479,7 @@ void loop() {
     // Рычаг сцепления → 0–5% газа (лимит безопасности)
     outputFinal = clutchPct * 0.10f;  // весь ход рычага = 0..10%
     voltage3 = 1000.0f + 3000.0f * (outputFinal / 100.0f);
-    dac.setVoltage((uint16_t)(voltage3 * 0.79f), false, 400000);
+    dacSetVoltage((uint16_t)(voltage3 * 0.79f));
 
   } else {
     // ── 3. Кривые педалей (сплайн) ──
@@ -520,7 +530,7 @@ void loop() {
     // ── 9. DAC ──
     float clutchEffect = (100.0f - (float)clutchCurve) / 100.0f;
     voltage3 = 1000.0f + 3000.0f * (outputFinal / 100.0f) * clutchEffect;
-    dac.setVoltage((uint16_t)(voltage3 * 0.79f), false, 400000);
+    dacSetVoltage((uint16_t)(voltage3 * 0.79f));
   }
 
   // ── 10. BLE notify ──
