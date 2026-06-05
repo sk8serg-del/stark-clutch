@@ -959,7 +959,7 @@
 
       const asset = release.assets.find(a => a.name === 'firmware.bin');
       if (!asset) throw new Error('firmware.bin not found in release');
-      ghFirmwareUrl = asset.browser_download_url;
+      ghFirmwareUrl = asset.url; // API URL — поддерживает CORS без редиректов
 
       const devVer = document.getElementById('fwVersionSpan').textContent.trim();
       if (devVer !== '—' && devVer === ghVer) {
@@ -988,7 +988,7 @@
     btn.disabled = true;
     try {
       status.textContent = 'Downloading firmware from GitHub...';
-      const resp = await fetch(ghFirmwareUrl);
+      const resp = await fetch(ghFirmwareUrl, { headers: { 'Accept': 'application/octet-stream' } });
       if (!resp.ok) throw new Error('Download error: ' + resp.status);
       const data = new Uint8Array(await resp.arrayBuffer());
       status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB, flashing...`;
@@ -1063,7 +1063,7 @@
       ghSpan.textContent = ghVer; ghSpan.style.color = '#e67e22';
       const asset = release.assets.find(a => a.name === 'firmware.bin');
       if (!asset) throw new Error('firmware.bin not found in release');
-      ghFirmwareUrl = asset.browser_download_url;
+      ghFirmwareUrl = asset.url; // API URL — поддерживает CORS без редиректов
       avail.style.display = 'block';
       status.textContent = `Update available: ${ghVer}`;
     } catch(e) {
