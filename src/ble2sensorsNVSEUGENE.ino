@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.4.0"
+#define FW_VERSION "2.5.0"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -97,8 +97,11 @@ float snapDuration       = 100.0f;  // мс — как долго спадает
 bool emergencyMode = false;
 
 // ── OTA ──
-bool   otaInProgress   = false;
-size_t otaExpectedSize = 0;
+bool     otaInProgress       = false;
+size_t   otaExpectedSize      = 0;
+// Отложенный notify — нельзя вызывать notify() внутри onWrite() callback
+volatile bool otaNotifyPending = false;
+String        otaNotifyMsg     = "";
 
 // ── Rate limiter состояние ──
 float    currentOutput = 0.0f;
@@ -345,28 +348,22 @@ class OtaCtrlCallbacks : public BLECharacteristicCallbacks {
     if (val.rfind("SIZE:", 0) == 0) {
       otaExpectedSize = (size_t)atoi(val.c_str() + 5);
       if (!Update.begin(otaExpectedSize)) {
-        otaCtrlChar->setValue("ERROR:begin failed");
-        otaCtrlChar->notify();
         Serial.println("[OTA] begin() failed — check partition scheme");
+        otaNotifyMsg = "ERROR:begin failed"; otaNotifyPending = true;
         return;
       }
       otaInProgress = true;
-      otaCtrlChar->setValue("READY");
-      otaCtrlChar->notify();
       Serial.printf("[OTA] Started, %d bytes\n", (int)otaExpectedSize);
+      otaNotifyMsg = "READY"; otaNotifyPending = true;
     } else if (val == "APPLY") {
       otaInProgress = false;
       if (Update.end(true)) {
-        otaCtrlChar->setValue("DONE");
-        otaCtrlChar->notify();
         Serial.println("[OTA] Done, rebooting...");
-        delay(500);
-        ESP.restart();
+        otaNotifyMsg = "DONE"; otaNotifyPending = true;
       } else {
-        String err = String("ERROR:") + Update.errorString();
-        otaCtrlChar->setValue(err.c_str());
-        otaCtrlChar->notify();
         Serial.printf("[OTA] end() error: %s\n", Update.errorString());
+        otaNotifyMsg = String("ERROR:") + Update.errorString();
+        otaNotifyPending = true;
       }
     }
   }
@@ -524,6 +521,15 @@ void loop() {
   if (dt > 0.05f)  dt = 0.05f;   // защита от скачков при BLE операциях
   lastLoopTime = now;
 
+  // Отложенный OTA notify — вызываем из loop(), не из BLE callback
+  if (otaNotifyPending) {
+    otaCtrlChar->setValue(otaNotifyMsg.c_str());
+    otaCtrlChar->notify();
+    otaNotifyPending = false;
+    // После DONE — перезагрузка
+    if (otaNotifyMsg == "DONE") { delay(300); ESP.restart(); }
+  }
+
   // Во время OTA не трогаем DAC и аналоговые входы
   if (otaInProgress) { delay(10); return; }
 
@@ -629,5 +635,5 @@ void loop() {
   Serial.print(",DAC:");      Serial.print((int)voltage3);
   Serial.print(",FW:");       Serial.println(FW_VERSION);
 
-  delay(5);
+  delay(20);
 }

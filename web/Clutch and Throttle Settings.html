@@ -927,11 +927,13 @@
     });
 
     try { await charSensor.stopNotifications(); } catch(e) {}
+    await new Promise(r => setTimeout(r, 300)); // дать BLE стеку успокоиться
     await charOtaCtrl.startNotifications();
 
     status.textContent = 'Starting OTA...';
+    const readyPromise = waitFor('READY'); // слушаем ДО записи — нет race condition
     await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('SIZE:' + size));
-    await waitFor('READY');
+    await readyPromise;
     status.textContent = `Sending ${(size / 1024).toFixed(0)} KB...`;
 
     for (let offset = 0; offset < size; offset += CHUNK) {
@@ -943,8 +945,9 @@
     }
 
     status.textContent = 'Applying firmware...';
+    const donePromise = waitFor('DONE', 12000); // слушаем ДО записи
     await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('APPLY'));
-    await waitFor('DONE', 12000);
+    await donePromise;
 
     bar.value = 100; pctTxt.textContent = '100%';
     status.textContent = '✓ Done! Device is rebooting...';
