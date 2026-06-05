@@ -305,6 +305,25 @@
     </div>
   </div>
 
+  <!-- ── Обновление прошивки ── -->
+  <div id="otaSection" class="section">
+    <div class="card">
+      <h3>Firmware Update</h3>
+      <p style="font-size:14px; margin:4px 0 12px;">
+        Device firmware version: <b id="fwVersionSpan">—</b>
+      </p>
+      <label>Select firmware file (.bin)</label>
+      <input type="file" id="otaFile" accept=".bin"
+             style="display:block; margin:8px 0 4px; font-size:14px; width:100%; box-sizing:border-box;">
+      <div id="otaProgressWrap" style="display:none; margin:8px 0;">
+        <progress id="otaProgressBar" value="0" max="100" style="width:100%; height:18px;"></progress>
+        <p style="margin:2px 0; font-size:13px; text-align:center;" id="otaProgressTxt">0%</p>
+      </div>
+      <p id="otaStatusMsg" style="font-size:13px; color:#888; margin:4px 0 8px; text-align:center; min-height:18px;"></p>
+      <button id="otaFlashBtn" class="button-full">Flash Firmware</button>
+    </div>
+  </div>
+
 </div><!-- /container -->
 
 <script src="./Clutch and Throttle Settings_files/chart.js.download"></script>
@@ -343,6 +362,9 @@
   const UUID_FW_HANG_THR      = '19b10012-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_SNAP_BOOST    = '19b10013-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_SNAP_FALL     = '19b10015-e8f2-537e-4f6c-d104768a1214';
+  const UUID_FW_VERSION       = '19b10020-e8f2-537e-4f6c-d104768a1214';
+  const UUID_OTA_CTRL         = '19b10021-e8f2-537e-4f6c-d104768a1214';
+  const UUID_OTA_DATA         = '19b10022-e8f2-537e-4f6c-d104768a1214';
 
   // ── BLE операции в очереди ──
   class BLEQueue {
@@ -372,6 +394,7 @@
   let emergencyActive = false;
   let charFW = {};
   let bikeLockStatus = false;
+  let charFwVersion = null, charOtaCtrl = null, charOtaData = null;
 
   // ── Вспомогательные функции ──
   async function tryGetChar(uuid) {
@@ -764,11 +787,15 @@
         charFW['fw_fallLoaded']   = await tryGetChar(UUID_FW_FALL_LOADED);
         charFW['fw_riseUnloaded'] = await tryGetChar(UUID_FW_RISE_UNLOADED);
         charFW['fw_fallUnloaded'] = await tryGetChar(UUID_FW_FALL_UNLOADED);
-          charFW['fw_hangDuration'] = await tryGetChar(UUID_FW_HANG_DUR);
+        charFW['fw_hangDuration'] = await tryGetChar(UUID_FW_HANG_DUR);
         charFW['fw_hangThreshold']= await tryGetChar(UUID_FW_HANG_THR);
         charFW['fw_snapBoost']    = await tryGetChar(UUID_FW_SNAP_BOOST);
         charFW['fw_snapFall']     = await tryGetChar(UUID_FW_SNAP_FALL);
       }
+
+      charFwVersion = await tryGetChar(UUID_FW_VERSION);
+      charOtaCtrl   = await tryGetChar(UUID_OTA_CTRL);
+      charOtaData   = await tryGetChar(UUID_OTA_DATA);
 
       // 2. Показываем UI по найденным характеристикам
       document.getElementById('bleState').textContent = 'Connected';
@@ -779,6 +806,7 @@
       if (charEmergency)                                   show('emergencySection');
       if (charACoef1 && !charFW['fw_riseLoaded'])          show('legacyFilterSection');
       if (charFW['fw_riseLoaded'])                         show('flywheelSection');
+      if (charFwVersion || charOtaCtrl)                    show('otaSection');
 
       // 3. Подписываемся на уведомления
       charSensor.startNotifications();
@@ -791,6 +819,12 @@
       if (charEmergency)           { try { await fetchEmergencyMode();      } catch(e) { console.error('emergency:', e); } }
       if (charACoef1)              { try { await loadLegacySlidersFromBle();} catch(e) { console.error('legacy:', e); } }
       if (charFW['fw_riseLoaded']) { try { await loadFWSliders();           } catch(e) { console.error('fw:', e); } }
+      if (charFwVersion) {
+        try {
+          const ver = await q.run(() => charFwVersion.readValue());
+          document.getElementById('fwVersionSpan').textContent = new TextDecoder().decode(ver);
+        } catch(e) { console.error('fwVersion:', e); }
+      }
 
     } catch(e) {
       document.getElementById('bleState').textContent = 'Failed: ' + e;
@@ -810,10 +844,81 @@
     document.getElementById('emergencySection').style.display   = 'none';
     document.getElementById('legacyFilterSection').style.display = 'none';
     document.getElementById('flywheelSection').style.display    = 'none';
+    document.getElementById('otaSection').style.display         = 'none';
     if (gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
   });
 
   // ── Кнопки графика ──
+  // ── OTA Flash ──
+  document.getElementById('otaFlashBtn').addEventListener('click', async () => {
+    const file = document.getElementById('otaFile').files[0];
+    if (!file) { alert('Select a .bin file first'); return; }
+    if (!charOtaCtrl || !charOtaData) { alert('OTA not supported by this firmware'); return; }
+
+    const CHUNK = 496;
+    const data  = new Uint8Array(await file.arrayBuffer());
+    const size  = data.byteLength;
+
+    const wrap    = document.getElementById('otaProgressWrap');
+    const bar     = document.getElementById('otaProgressBar');
+    const pctTxt  = document.getElementById('otaProgressTxt');
+    const status  = document.getElementById('otaStatusMsg');
+    const btn     = document.getElementById('otaFlashBtn');
+
+    wrap.style.display = 'block';
+    bar.value = 0; pctTxt.textContent = '0%';
+    status.textContent = 'Starting...';
+    btn.disabled = true;
+
+    // Ждём нужное BLE уведомление (с таймаутом)
+    const waitFor = (keyword, timeoutMs = 8000) => new Promise((res, rej) => {
+      const timer = setTimeout(() => rej(new Error('Timeout: ' + keyword)), timeoutMs);
+      const handler = (e) => {
+        const msg = new TextDecoder().decode(e.target.value);
+        if (msg === keyword || msg.startsWith('ERROR')) {
+          clearTimeout(timer);
+          charOtaCtrl.removeEventListener('characteristicvaluechanged', handler);
+          msg.startsWith('ERROR') ? rej(new Error(msg)) : res(msg);
+        }
+      };
+      charOtaCtrl.addEventListener('characteristicvaluechanged', handler);
+    });
+
+    try {
+      // Останавливаем sensor notify чтобы не мешал
+      try { await charSensor.stopNotifications(); } catch(e) {}
+      await charOtaCtrl.startNotifications();
+
+      // Отправляем размер, ждём READY
+      await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('SIZE:' + size));
+      await waitFor('READY');
+      status.textContent = `Sending ${(size / 1024).toFixed(0)} KB...`;
+
+      // Отправляем чанки
+      for (let offset = 0; offset < size; offset += CHUNK) {
+        const chunk = data.slice(offset, Math.min(offset + CHUNK, size));
+        await charOtaData.writeValueWithResponse(chunk);
+        const pct = Math.round((offset + chunk.byteLength) / size * 100);
+        bar.value = pct; pctTxt.textContent = pct + '%';
+        status.textContent = `${((offset + chunk.byteLength) / 1024).toFixed(0)} / ${(size / 1024).toFixed(0)} KB`;
+      }
+
+      // Применяем, ждём DONE
+      status.textContent = 'Applying firmware...';
+      await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('APPLY'));
+      await waitFor('DONE', 12000);
+
+      bar.value = 100; pctTxt.textContent = '100%';
+      status.textContent = '✓ Done! Device is rebooting...';
+    } catch(e) {
+      status.textContent = '✗ Error: ' + e.message;
+      console.error('OTA error:', e);
+    } finally {
+      btn.disabled = false;
+      try { await charSensor.startNotifications(); } catch(e) {}
+    }
+  });
+
   document.getElementById('saveDropdownValue').addEventListener('click', sendChartToBle);
   document.getElementById('loadDropdownValue').addEventListener('click', fetchChartFromBle);
   document.getElementById('setDefaultValue').addEventListener('click', () => {

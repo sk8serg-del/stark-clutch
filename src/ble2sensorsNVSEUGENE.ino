@@ -8,6 +8,9 @@
 #include <GyverFilters.h>
 #include <InterpolationLib.h>
 #include <Adafruit_MCP4725.h>
+#include <Update.h>
+
+#define FW_VERSION "2.2.0"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -51,6 +54,9 @@ BLECharacteristic* fwHangThrChar       = NULL;
 BLECharacteristic* fwSnapBoostChar     = NULL;
 BLECharacteristic* fwSnapFallChar      = NULL;
 BLECharacteristic* emergencyModeChar   = NULL;
+BLECharacteristic* fwVersionChar       = NULL;
+BLECharacteristic* otaCtrlChar         = NULL;
+BLECharacteristic* otaDataChar         = NULL;
 
 // ── Пины ──
 int Hall          = A0;
@@ -89,6 +95,10 @@ float snapDuration       = 100.0f;  // мс — как долго спадает
 
 // ── Аварийный режим ──
 bool emergencyMode = false;
+
+// ── OTA ──
+bool   otaInProgress   = false;
+size_t otaExpectedSize = 0;
 
 // ── Rate limiter состояние ──
 float    currentOutput = 0.0f;
@@ -329,6 +339,50 @@ public:
   }
 };
 
+class OtaCtrlCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* c) override {
+    std::string val = std::string(c->getValue().c_str());
+    if (val.rfind("SIZE:", 0) == 0) {
+      otaExpectedSize = (size_t)atoi(val.c_str() + 5);
+      if (!Update.begin(otaExpectedSize)) {
+        otaCtrlChar->setValue("ERROR:begin failed");
+        otaCtrlChar->notify();
+        Serial.println("[OTA] begin() failed — check partition scheme");
+        return;
+      }
+      otaInProgress = true;
+      otaCtrlChar->setValue("READY");
+      otaCtrlChar->notify();
+      Serial.printf("[OTA] Started, %d bytes\n", (int)otaExpectedSize);
+    } else if (val == "APPLY") {
+      otaInProgress = false;
+      if (Update.end(true)) {
+        otaCtrlChar->setValue("DONE");
+        otaCtrlChar->notify();
+        Serial.println("[OTA] Done, rebooting...");
+        delay(500);
+        ESP.restart();
+      } else {
+        String err = String("ERROR:") + Update.errorString();
+        otaCtrlChar->setValue(err.c_str());
+        otaCtrlChar->notify();
+        Serial.printf("[OTA] end() error: %s\n", Update.errorString());
+      }
+    }
+  }
+};
+
+class OtaDataCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* c) override {
+    if (!otaInProgress || c->getLength() == 0) return;
+    if (Update.write(c->getData(), c->getLength()) != c->getLength()) {
+      otaInProgress = false;
+      otaCtrlChar->setValue("ERROR:write failed");
+      otaCtrlChar->notify();
+    }
+  }
+};
+
 // ════════════════════════════════════════════════════════
 //  SETUP
 // ════════════════════════════════════════════════════════
@@ -425,6 +479,22 @@ void setup() {
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
   emergencyModeChar->setCallbacks(new EmergencyModeCallbacks());
 
+  // Версия прошивки + OTA
+  fwVersionChar = pService->createCharacteristic(
+    "19b10020-e8f2-537e-4f6c-d104768a1214", BLECharacteristic::PROPERTY_READ);
+  fwVersionChar->setValue(FW_VERSION);
+
+  otaCtrlChar = pService->createCharacteristic(
+    "19b10021-e8f2-537e-4f6c-d104768a1214",
+    BLECharacteristic::PROPERTY_WRITE | BLECharacteristic::PROPERTY_NOTIFY);
+  otaCtrlChar->addDescriptor(new BLE2902());
+  otaCtrlChar->setCallbacks(new OtaCtrlCallbacks());
+
+  otaDataChar = pService->createCharacteristic(
+    "19b10022-e8f2-537e-4f6c-d104768a1214",
+    BLECharacteristic::PROPERTY_WRITE);
+  otaDataChar->setCallbacks(new OtaDataCallbacks());
+
   pService->start();
   BLEDevice::startAdvertising();
 
@@ -453,6 +523,9 @@ void loop() {
   if (dt < 0.001f) dt = 0.001f;
   if (dt > 0.05f)  dt = 0.05f;   // защита от скачков при BLE операциях
   lastLoopTime = now;
+
+  // Во время OTA не трогаем DAC и аналоговые входы
+  if (otaInProgress) { delay(10); return; }
 
   // ── 1. Чтение и шумовой фильтр ──
   int rawA0  = analogReadMilliVolts(Hall);
