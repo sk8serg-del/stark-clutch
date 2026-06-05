@@ -305,7 +305,32 @@
     </div>
   </div>
 
-  <!-- ── Обновление прошивки ── -->
+  <!-- ── USB прошивка (старая прошивка без BLE OTA) ── -->
+  <div id="usbFlashSection" class="section">
+    <div class="card">
+      <h3>Firmware Update</h3>
+      <p style="font-size:14px; margin:4px 0 8px;">
+        GitHub: <b id="usbGhVersionSpan" style="color:#888;">—</b>
+      </p>
+      <button id="usbCheckBtn" class="button-full" style="background:#2a86d6;">Check for Update</button>
+      <div id="usbUpdateAvail" style="display:none; margin-top:4px;">
+        <button id="usbDownloadFlashBtn" class="button-full" style="background:#607d8b;">Download &amp; Flash via USB Cable</button>
+      </div>
+      <hr style="margin:14px 0 10px; border:none; border-top:1px solid #eee;">
+      <p style="font-size:13px; color:#aaa; margin:0 0 4px; text-align:center;">or flash from file</p>
+      <input type="file" id="usbFile" accept=".bin"
+             style="display:block; margin:4px 0; font-size:14px; width:100%; box-sizing:border-box;">
+      <button id="usbFileFlashBtn" class="button-full" style="background:#607d8b;">Flash from File via USB</button>
+      <div id="usbProgressWrap" style="display:none; margin:10px 0 4px;">
+        <progress id="usbProgressBar" value="0" max="100" style="width:100%; height:18px;"></progress>
+        <p style="margin:2px 0; font-size:13px; text-align:center;" id="usbProgressTxt">0%</p>
+      </div>
+      <p id="usbStatusMsg" style="font-size:13px; color:#888; margin:4px 0; text-align:center; min-height:18px;"></p>
+      <p style="font-size:11px; color:#aaa; margin:2px 0 0; text-align:center;">Chrome / Edge · Web Serial API</p>
+    </div>
+  </div>
+
+  <!-- ── BLE OTA (новая прошивка) ── -->
   <div id="otaSection" class="section">
     <div class="card">
       <h3>Firmware Update</h3>
@@ -325,8 +350,6 @@
       <input type="file" id="otaFile" accept=".bin"
              style="display:block; margin:4px 0; font-size:14px; width:100%; box-sizing:border-box;">
       <button id="otaFlashBtn" class="button-full">Flash from File</button>
-      <button id="usbFlashBtn" class="button-full" style="background:#607d8b; margin-top:4px;">Flash via USB Cable</button>
-      <p style="font-size:11px; color:#aaa; margin:2px 0 8px; text-align:center;">Chrome / Edge · Web Serial API · no BLE needed</p>
 
       <div id="otaProgressWrap" style="display:none; margin:10px 0 4px;">
         <progress id="otaProgressBar" value="0" max="100" style="width:100%; height:18px;"></progress>
@@ -818,7 +841,8 @@
       if (charEmergency)                                   show('emergencySection');
       if (charACoef1 && !charFW['fw_riseLoaded'])          show('legacyFilterSection');
       if (charFW['fw_riseLoaded'])                         show('flywheelSection');
-      if (charFwVersion || charOtaCtrl)                    show('otaSection');
+      if (charOtaCtrl)                                     show('otaSection');
+      else                                                 show('usbFlashSection');
 
       // 3. Подписываемся на уведомления
       charSensor.startNotifications();
@@ -857,6 +881,7 @@
     document.getElementById('legacyFilterSection').style.display = 'none';
     document.getElementById('flywheelSection').style.display    = 'none';
     document.getElementById('otaSection').style.display         = 'none';
+    document.getElementById('usbFlashSection').style.display    = 'none';
     if (gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
   });
 
@@ -976,96 +1001,118 @@
     }
   });
 
-  // ── Flash via USB Cable (Web Serial + esptool-js) ──
-  document.getElementById('usbFlashBtn').addEventListener('click', async () => {
-    const status = document.getElementById('otaStatusMsg');
-    const bar    = document.getElementById('otaProgressBar');
-    const pctTxt = document.getElementById('otaProgressTxt');
-    const btn    = document.getElementById('usbFlashBtn');
+  // ── USB Flash: общая функция ──
+  async function doUsbFlash(firmwareData, statusEl, barEl, pctEl) {
+    if (!('serial' in navigator)) throw new Error('Web Serial not supported — use Chrome or Edge');
 
-    if (!('serial' in navigator)) {
-      alert('Web Serial not supported. Use Chrome or Edge browser.');
-      return;
+    const binaryStr = firmwareData.reduce((s, b) => s + String.fromCharCode(b), '');
+
+    if (typeof window.ESPLoader === 'undefined') {
+      statusEl.textContent = 'Loading flash tool...';
+      await new Promise((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://unpkg.com/esptool-js@0.4.4/bundle.js';
+        s.onload = res;
+        s.onerror = () => rej(new Error('Failed to load esptool-js from CDN'));
+        document.head.appendChild(s);
+      });
     }
-    const file = document.getElementById('otaFile').files[0];
-    if (!file && !ghFirmwareUrl) {
-      alert('Select a .bin file or click "Check for Update" first');
-      return;
-    }
 
-    btn.disabled = true;
-    document.getElementById('otaProgressWrap').style.display = 'block';
-    bar.value = 0; pctTxt.textContent = '0%';
+    statusEl.textContent = 'Select USB serial port...';
+    const port = await navigator.serial.requestPort();
+    const transport = new window.Transport(port, true);
+    const esploader = new window.ESPLoader({
+      transport, baudrate: 460800,
+      terminal: { clean: () => {}, writeLine: (m) => { statusEl.textContent = m; }, write: () => {} }
+    });
 
+    statusEl.textContent = 'Connecting to ESP32...';
+    const chip = await esploader.main();
+    statusEl.textContent = `${chip} — writing firmware...`;
+
+    await esploader.write_flash({
+      fileArray: [{ data: binaryStr, address: 0x10000 }],
+      flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
+      eraseAll: false, compress: true,
+    }, (idx, written, total) => {
+      const pct = Math.round(written / total * 100);
+      barEl.value = pct; pctEl.textContent = pct + '%';
+      statusEl.textContent = `Writing: ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`;
+    });
+
+    await esploader.hard_reset();
+    await transport.disconnect();
+    barEl.value = 100; pctEl.textContent = '100%';
+    statusEl.textContent = '✓ Done! Device rebooting...';
+  }
+
+  // ── USB секция: GitHub check ──
+  document.getElementById('usbCheckBtn').addEventListener('click', async () => {
+    const btn    = document.getElementById('usbCheckBtn');
+    const ghSpan = document.getElementById('usbGhVersionSpan');
+    const avail  = document.getElementById('usbUpdateAvail');
+    const status = document.getElementById('usbStatusMsg');
+
+    btn.disabled = true; btn.textContent = 'Checking...';
+    ghSpan.style.color = '#888'; ghSpan.textContent = '...';
     try {
-      // Get firmware bytes
-      let firmwareData;
-      if (file) {
-        firmwareData = new Uint8Array(await file.arrayBuffer());
-      } else {
-        status.textContent = 'Downloading from GitHub...';
-        const r = await fetch(ghFirmwareUrl);
-        if (!r.ok) throw new Error('Download failed: ' + r.status);
-        firmwareData = new Uint8Array(await r.arrayBuffer());
-      }
+      const resp = await fetch(GITHUB_RELEASES);
+      if (!resp.ok) throw new Error('GitHub API: ' + resp.status);
+      const release = await resp.json();
+      const ghVer = (release.body || '').trim() || release.tag_name.replace(/^v/, '');
+      ghSpan.textContent = ghVer; ghSpan.style.color = '#e67e22';
+      const asset = release.assets.find(a => a.name === 'firmware.bin');
+      if (!asset) throw new Error('firmware.bin not found in release');
+      ghFirmwareUrl = asset.browser_download_url;
+      avail.style.display = 'block';
+      status.textContent = `Update available: ${ghVer}`;
+    } catch(e) {
+      ghSpan.textContent = 'Error'; ghSpan.style.color = '#d13a30';
+      status.textContent = '✗ ' + e.message;
+    } finally {
+      btn.disabled = false; btn.textContent = 'Check for Update';
+    }
+  });
 
-      // esptool-js requires binary string, not Uint8Array
-      const binaryStr = firmwareData.reduce((s, b) => s + String.fromCharCode(b), '');
-
-      // Load esptool-js from CDN once
-      if (typeof window.ESPLoader === 'undefined') {
-        status.textContent = 'Loading flash tool...';
-        await new Promise((res, rej) => {
-          const s = document.createElement('script');
-          s.src = 'https://unpkg.com/esptool-js@0.4.4/bundle.js';
-          s.onload = res;
-          s.onerror = () => rej(new Error('Failed to load esptool-js from CDN'));
-          document.head.appendChild(s);
-        });
-      }
-
-      status.textContent = 'Select USB serial port in the dialog...';
-      const port = await navigator.serial.requestPort();
-      const transport = new window.Transport(port, true);
-
-      const esploader = new window.ESPLoader({
-        transport,
-        baudrate: 460800,
-        terminal: {
-          clean:     () => {},
-          writeLine: (m) => { status.textContent = m; },
-          write:     () => {}
-        }
-      });
-
-      status.textContent = 'Connecting to ESP32...';
-      const chip = await esploader.main();
-      status.textContent = `${chip} connected. Writing firmware...`;
-
-      await esploader.write_flash({
-        fileArray: [{ data: binaryStr, address: 0x10000 }],
-        flashSize: 'keep',
-        flashMode: 'keep',
-        flashFreq: 'keep',
-        eraseAll:  false,
-        compress:  true,
-      }, (fileIndex, written, total) => {
-        const pct = Math.round(written / total * 100);
-        bar.value = pct; pctTxt.textContent = pct + '%';
-        status.textContent = `Writing: ${(written / 1024).toFixed(0)} / ${(total / 1024).toFixed(0)} KB`;
-      });
-
-      await esploader.hard_reset();
-      await transport.disconnect();
-      bar.value = 100; pctTxt.textContent = '100%';
-      status.textContent = '✓ Done! Device rebooting...';
-
+  // ── USB секция: Download & Flash ──
+  document.getElementById('usbDownloadFlashBtn').addEventListener('click', async () => {
+    const btn    = document.getElementById('usbDownloadFlashBtn');
+    const status = document.getElementById('usbStatusMsg');
+    const bar    = document.getElementById('usbProgressBar');
+    const pct    = document.getElementById('usbProgressTxt');
+    if (!ghFirmwareUrl) return;
+    btn.disabled = true;
+    document.getElementById('usbProgressWrap').style.display = 'block';
+    bar.value = 0; pct.textContent = '0%';
+    try {
+      status.textContent = 'Downloading firmware from GitHub...';
+      const r = await fetch(ghFirmwareUrl);
+      if (!r.ok) throw new Error('Download error: ' + r.status);
+      const data = new Uint8Array(await r.arrayBuffer());
+      await doUsbFlash(data, status, bar, pct);
     } catch(e) {
       status.textContent = '✗ ' + e.message;
-      console.error('USB flash:', e);
-    } finally {
-      btn.disabled = false;
-    }
+      console.error('USB download flash:', e);
+    } finally { btn.disabled = false; }
+  });
+
+  // ── USB секция: Flash from File ──
+  document.getElementById('usbFileFlashBtn').addEventListener('click', async () => {
+    const file   = document.getElementById('usbFile').files[0];
+    const btn    = document.getElementById('usbFileFlashBtn');
+    const status = document.getElementById('usbStatusMsg');
+    const bar    = document.getElementById('usbProgressBar');
+    const pct    = document.getElementById('usbProgressTxt');
+    if (!file) { alert('Select a .bin file first'); return; }
+    btn.disabled = true;
+    document.getElementById('usbProgressWrap').style.display = 'block';
+    bar.value = 0; pct.textContent = '0%';
+    try {
+      await doUsbFlash(new Uint8Array(await file.arrayBuffer()), status, bar, pct);
+    } catch(e) {
+      status.textContent = '✗ ' + e.message;
+      console.error('USB file flash:', e);
+    } finally { btn.disabled = false; }
   });
 
   // ── Flash from file ──
