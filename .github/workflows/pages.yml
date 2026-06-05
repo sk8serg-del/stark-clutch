@@ -25,6 +25,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Get firmware from latest release
+        run: |
+          curl -fsSL \
+            "https://github.com/${{ github.repository }}/releases/latest/download/firmware.bin" \
+            -o web/firmware.bin \
+            && echo "firmware.bin downloaded" \
+            || echo "No release yet — firmware.bin skipped"
+          curl -fsSL \
+            "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
+            | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('body',''))" \
+            > web/firmware_version.txt 2>/dev/null \
+            || echo "unknown" > web/firmware_version.txt
+
       - name: Setup Pages
         uses: actions/configure-pages@v5
 

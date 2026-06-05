@@ -898,8 +898,9 @@
 
   // ── Кнопки графика ──
   // ── OTA: общая функция прошивки ──
-  const GITHUB_RELEASES = 'https://api.github.com/repos/sk8serg-del/stark-clutch/releases/latest';
-  let ghFirmwareUrl = null;
+  // firmware.bin и firmware_version.txt лежат рядом на GitHub Pages (тот же домен, нет CORS)
+  const FW_BIN_URL = 'firmware.bin';
+  const FW_VER_URL = 'firmware_version.txt';
 
   async function flashFirmware(data) {
     if (!charOtaCtrl || !charOtaData) throw new Error('OTA not supported by this firmware');
@@ -950,7 +951,7 @@
     try { await charSensor.startNotifications(); } catch(e) {}
   }
 
-  // ── Check GitHub for update ──
+  // ── OTA: Check latest version ──
   document.getElementById('otaCheckBtn').addEventListener('click', async () => {
     const btn    = document.getElementById('otaCheckBtn');
     const ghSpan = document.getElementById('ghVersionSpan');
@@ -961,16 +962,10 @@
     ghSpan.style.color = '#888'; ghSpan.textContent = '...';
 
     try {
-      const resp = await fetch(GITHUB_RELEASES);
-      if (!resp.ok) throw new Error('GitHub API: ' + resp.status);
-      const release = await resp.json();
-
-      const ghVer = (release.body || '').trim() || release.tag_name.replace(/^v/, '');
+      const resp = await fetch(FW_VER_URL + '?_=' + Date.now());
+      if (!resp.ok) throw new Error('Version file not found (' + resp.status + ')');
+      const ghVer = (await resp.text()).trim();
       ghSpan.textContent = ghVer;
-
-      const asset = release.assets.find(a => a.name === 'firmware.bin');
-      if (!asset) throw new Error('firmware.bin not found in release');
-      ghFirmwareUrl = asset.url; // API URL — поддерживает CORS без редиректов
 
       const devVer = document.getElementById('fwVersionSpan').textContent.trim();
       if (devVer !== '—' && devVer === ghVer) {
@@ -985,28 +980,27 @@
     } catch(e) {
       ghSpan.textContent = 'Error'; ghSpan.style.color = '#d13a30';
       status.textContent = '✗ ' + e.message;
-      console.error('GitHub check:', e);
+      console.error('OTA check:', e);
     } finally {
       btn.disabled = false; btn.textContent = 'Check for Update';
     }
   });
 
-  // ── Download & Flash from GitHub ──
+  // ── OTA: Download & Flash from Pages ──
   document.getElementById('otaDownloadFlashBtn').addEventListener('click', async () => {
     const btn    = document.getElementById('otaDownloadFlashBtn');
     const status = document.getElementById('otaStatusMsg');
-    if (!ghFirmwareUrl) return;
     btn.disabled = true;
     try {
-      status.textContent = 'Downloading firmware from GitHub...';
-      const resp = await fetch(ghFirmwareUrl, { headers: { 'Accept': 'application/octet-stream' } });
+      status.textContent = 'Downloading firmware...';
+      const resp = await fetch(FW_BIN_URL + '?_=' + Date.now());
       if (!resp.ok) throw new Error('Download error: ' + resp.status);
       const data = new Uint8Array(await resp.arrayBuffer());
-      status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB, flashing...`;
+      status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB, flashing over BLE...`;
       await flashFirmware(data);
     } catch(e) {
       status.textContent = '✗ ' + e.message;
-      console.error('Download & flash:', e);
+      console.error('OTA download & flash:', e);
     } finally {
       btn.disabled = false;
     }
@@ -1075,7 +1069,7 @@
     statusEl.textContent = '✓ Done! Device rebooting...';
   }
 
-  // ── USB секция: GitHub check ──
+  // ── USB секция: check version ──
   document.getElementById('usbCheckBtn').addEventListener('click', async () => {
     const btn    = document.getElementById('usbCheckBtn');
     const ghSpan = document.getElementById('usbGhVersionSpan');
@@ -1085,16 +1079,12 @@
     btn.disabled = true; btn.textContent = 'Checking...';
     ghSpan.style.color = '#888'; ghSpan.textContent = '...';
     try {
-      const resp = await fetch(GITHUB_RELEASES);
-      if (!resp.ok) throw new Error('GitHub API: ' + resp.status);
-      const release = await resp.json();
-      const ghVer = (release.body || '').trim() || release.tag_name.replace(/^v/, '');
+      const resp = await fetch(FW_VER_URL + '?_=' + Date.now());
+      if (!resp.ok) throw new Error('Version file not found (' + resp.status + ')');
+      const ghVer = (await resp.text()).trim();
       ghSpan.textContent = ghVer; ghSpan.style.color = '#e67e22';
-      const asset = release.assets.find(a => a.name === 'firmware.bin');
-      if (!asset) throw new Error('firmware.bin not found in release');
-      ghFirmwareUrl = asset.url; // API URL — поддерживает CORS без редиректов
       avail.style.display = 'block';
-      status.textContent = `Update available: ${ghVer}`;
+      status.textContent = `Available: ${ghVer}`;
     } catch(e) {
       ghSpan.textContent = 'Error'; ghSpan.style.color = '#d13a30';
       status.textContent = '✗ ' + e.message;
@@ -1109,13 +1099,12 @@
     const status = document.getElementById('usbStatusMsg');
     const bar    = document.getElementById('usbProgressBar');
     const pct    = document.getElementById('usbProgressTxt');
-    if (!ghFirmwareUrl) return;
     btn.disabled = true;
     document.getElementById('usbProgressWrap').style.display = 'block';
     bar.value = 0; pct.textContent = '0%';
     try {
-      status.textContent = 'Downloading firmware from GitHub...';
-      const r = await fetch(ghFirmwareUrl);
+      status.textContent = 'Downloading firmware...';
+      const r = await fetch(FW_BIN_URL + '?_=' + Date.now());
       if (!r.ok) throw new Error('Download error: ' + r.status);
       const data = new Uint8Array(await r.arrayBuffer());
       await doUsbFlash(data, status, bar, pct);
