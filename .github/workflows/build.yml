@@ -1,0 +1,47 @@
+name: Build Firmware
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'src/**'
+      - 'platformio.ini'
+      - 'lib/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install PlatformIO
+        run: pip install platformio
+
+      - name: Build firmware
+        run: pio run -e seeed_xiao_esp32c3
+
+      - name: Get firmware version
+        id: ver
+        run: |
+          VER=$(grep -oP '(?<=#define FW_VERSION ")[^"]+' src/ble2sensorsNVSEUGENE.ino)
+          echo "version=$VER" >> $GITHUB_OUTPUT
+          echo "Version: $VER"
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Firmware v${{ steps.ver.outputs.version }}"
+          body: "${{ steps.ver.outputs.version }}"
+          files: .pio/build/seeed_xiao_esp32c3/firmware.bin
+          make_latest: true

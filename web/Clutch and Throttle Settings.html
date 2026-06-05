@@ -309,18 +309,28 @@
   <div id="otaSection" class="section">
     <div class="card">
       <h3>Firmware Update</h3>
-      <p style="font-size:14px; margin:4px 0 12px;">
-        Device firmware version: <b id="fwVersionSpan">—</b>
+      <p style="font-size:14px; margin:4px 0 8px;">
+        Device: <b id="fwVersionSpan">—</b>
+        &nbsp;&nbsp;GitHub: <b id="ghVersionSpan" style="color:#888;">—</b>
       </p>
-      <label>Select firmware file (.bin)</label>
+      <div class="connectionContainer" style="margin-bottom:4px;">
+        <button id="otaCheckBtn" style="background:#2a86d6; width:97%;" class="button-full">Check for Update</button>
+      </div>
+      <div id="otaUpdateAvail" style="display:none;">
+        <button id="otaDownloadFlashBtn" class="button-full" style="background:#e67e22;">Download &amp; Flash from GitHub</button>
+      </div>
+
+      <hr style="margin:14px 0 10px; border:none; border-top:1px solid #eee;">
+      <p style="font-size:13px; color:#aaa; margin:0 0 4px; text-align:center;">or flash from file manually</p>
       <input type="file" id="otaFile" accept=".bin"
-             style="display:block; margin:8px 0 4px; font-size:14px; width:100%; box-sizing:border-box;">
-      <div id="otaProgressWrap" style="display:none; margin:8px 0;">
+             style="display:block; margin:4px 0; font-size:14px; width:100%; box-sizing:border-box;">
+      <button id="otaFlashBtn" class="button-full">Flash from File</button>
+
+      <div id="otaProgressWrap" style="display:none; margin:10px 0 4px;">
         <progress id="otaProgressBar" value="0" max="100" style="width:100%; height:18px;"></progress>
         <p style="margin:2px 0; font-size:13px; text-align:center;" id="otaProgressTxt">0%</p>
       </div>
-      <p id="otaStatusMsg" style="font-size:13px; color:#888; margin:4px 0 8px; text-align:center; min-height:18px;"></p>
-      <button id="otaFlashBtn" class="button-full">Flash Firmware</button>
+      <p id="otaStatusMsg" style="font-size:13px; color:#888; margin:4px 0; text-align:center; min-height:18px;"></p>
     </div>
   </div>
 
@@ -849,28 +859,21 @@
   });
 
   // ── Кнопки графика ──
-  // ── OTA Flash ──
-  document.getElementById('otaFlashBtn').addEventListener('click', async () => {
-    const file = document.getElementById('otaFile').files[0];
-    if (!file) { alert('Select a .bin file first'); return; }
-    if (!charOtaCtrl || !charOtaData) { alert('OTA not supported by this firmware'); return; }
+  // ── OTA: общая функция прошивки ──
+  const GITHUB_RELEASES = 'https://api.github.com/repos/sk8serg-del/stark-clutch/releases/latest';
+  let ghFirmwareUrl = null;
 
-    const CHUNK = 496;
-    const data  = new Uint8Array(await file.arrayBuffer());
-    const size  = data.byteLength;
+  async function flashFirmware(data) {
+    if (!charOtaCtrl || !charOtaData) throw new Error('OTA not supported by this firmware');
+    const CHUNK  = 496;
+    const size   = data.byteLength;
+    const bar    = document.getElementById('otaProgressBar');
+    const pctTxt = document.getElementById('otaProgressTxt');
+    const status = document.getElementById('otaStatusMsg');
 
-    const wrap    = document.getElementById('otaProgressWrap');
-    const bar     = document.getElementById('otaProgressBar');
-    const pctTxt  = document.getElementById('otaProgressTxt');
-    const status  = document.getElementById('otaStatusMsg');
-    const btn     = document.getElementById('otaFlashBtn');
-
-    wrap.style.display = 'block';
+    document.getElementById('otaProgressWrap').style.display = 'block';
     bar.value = 0; pctTxt.textContent = '0%';
-    status.textContent = 'Starting...';
-    btn.disabled = true;
 
-    // Ждём нужное BLE уведомление (с таймаутом)
     const waitFor = (keyword, timeoutMs = 8000) => new Promise((res, rej) => {
       const timer = setTimeout(() => rej(new Error('Timeout: ' + keyword)), timeoutMs);
       const handler = (e) => {
@@ -884,38 +887,106 @@
       charOtaCtrl.addEventListener('characteristicvaluechanged', handler);
     });
 
+    try { await charSensor.stopNotifications(); } catch(e) {}
+    await charOtaCtrl.startNotifications();
+
+    status.textContent = 'Starting OTA...';
+    await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('SIZE:' + size));
+    await waitFor('READY');
+    status.textContent = `Sending ${(size / 1024).toFixed(0)} KB...`;
+
+    for (let offset = 0; offset < size; offset += CHUNK) {
+      const chunk = data.slice(offset, Math.min(offset + CHUNK, size));
+      await charOtaData.writeValueWithResponse(chunk);
+      const pct = Math.round((offset + chunk.byteLength) / size * 100);
+      bar.value = pct; pctTxt.textContent = pct + '%';
+      status.textContent = `${((offset + chunk.byteLength) / 1024).toFixed(0)} / ${(size / 1024).toFixed(0)} KB`;
+    }
+
+    status.textContent = 'Applying firmware...';
+    await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('APPLY'));
+    await waitFor('DONE', 12000);
+
+    bar.value = 100; pctTxt.textContent = '100%';
+    status.textContent = '✓ Done! Device is rebooting...';
+    try { await charSensor.startNotifications(); } catch(e) {}
+  }
+
+  // ── Check GitHub for update ──
+  document.getElementById('otaCheckBtn').addEventListener('click', async () => {
+    const btn    = document.getElementById('otaCheckBtn');
+    const ghSpan = document.getElementById('ghVersionSpan');
+    const avail  = document.getElementById('otaUpdateAvail');
+    const status = document.getElementById('otaStatusMsg');
+
+    btn.disabled = true; btn.textContent = 'Checking...';
+    ghSpan.style.color = '#888'; ghSpan.textContent = '...';
+
     try {
-      // Останавливаем sensor notify чтобы не мешал
-      try { await charSensor.stopNotifications(); } catch(e) {}
-      await charOtaCtrl.startNotifications();
+      const resp = await fetch(GITHUB_RELEASES);
+      if (!resp.ok) throw new Error('GitHub API: ' + resp.status);
+      const release = await resp.json();
 
-      // Отправляем размер, ждём READY
-      await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('SIZE:' + size));
-      await waitFor('READY');
-      status.textContent = `Sending ${(size / 1024).toFixed(0)} KB...`;
+      const ghVer = (release.body || '').trim() || release.tag_name.replace(/^v/, '');
+      ghSpan.textContent = ghVer;
 
-      // Отправляем чанки
-      for (let offset = 0; offset < size; offset += CHUNK) {
-        const chunk = data.slice(offset, Math.min(offset + CHUNK, size));
-        await charOtaData.writeValueWithResponse(chunk);
-        const pct = Math.round((offset + chunk.byteLength) / size * 100);
-        bar.value = pct; pctTxt.textContent = pct + '%';
-        status.textContent = `${((offset + chunk.byteLength) / 1024).toFixed(0)} / ${(size / 1024).toFixed(0)} KB`;
+      const asset = release.assets.find(a => a.name === 'firmware.bin');
+      if (!asset) throw new Error('firmware.bin not found in release');
+      ghFirmwareUrl = asset.browser_download_url;
+
+      const devVer = document.getElementById('fwVersionSpan').textContent.trim();
+      if (devVer !== '—' && devVer === ghVer) {
+        ghSpan.style.color = '#24af24';
+        avail.style.display = 'none';
+        status.textContent = '✓ Firmware is up to date';
+      } else {
+        ghSpan.style.color = '#e67e22';
+        avail.style.display = 'block';
+        status.textContent = devVer === '—' ? 'Connect device to compare' : `Update available: ${ghVer}`;
       }
-
-      // Применяем, ждём DONE
-      status.textContent = 'Applying firmware...';
-      await charOtaCtrl.writeValueWithResponse(new TextEncoder().encode('APPLY'));
-      await waitFor('DONE', 12000);
-
-      bar.value = 100; pctTxt.textContent = '100%';
-      status.textContent = '✓ Done! Device is rebooting...';
     } catch(e) {
-      status.textContent = '✗ Error: ' + e.message;
+      ghSpan.textContent = 'Error'; ghSpan.style.color = '#d13a30';
+      status.textContent = '✗ ' + e.message;
+      console.error('GitHub check:', e);
+    } finally {
+      btn.disabled = false; btn.textContent = 'Check for Update';
+    }
+  });
+
+  // ── Download & Flash from GitHub ──
+  document.getElementById('otaDownloadFlashBtn').addEventListener('click', async () => {
+    const btn    = document.getElementById('otaDownloadFlashBtn');
+    const status = document.getElementById('otaStatusMsg');
+    if (!ghFirmwareUrl) return;
+    btn.disabled = true;
+    try {
+      status.textContent = 'Downloading firmware from GitHub...';
+      const resp = await fetch(ghFirmwareUrl);
+      if (!resp.ok) throw new Error('Download error: ' + resp.status);
+      const data = new Uint8Array(await resp.arrayBuffer());
+      status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB, flashing...`;
+      await flashFirmware(data);
+    } catch(e) {
+      status.textContent = '✗ ' + e.message;
+      console.error('Download & flash:', e);
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ── Flash from file ──
+  document.getElementById('otaFlashBtn').addEventListener('click', async () => {
+    const file = document.getElementById('otaFile').files[0];
+    if (!file) { alert('Select a .bin file first'); return; }
+    const btn = document.getElementById('otaFlashBtn');
+    btn.disabled = true;
+    try {
+      await flashFirmware(new Uint8Array(await file.arrayBuffer()));
+    } catch(e) {
+      document.getElementById('otaStatusMsg').textContent = '✗ Error: ' + e.message;
       console.error('OTA error:', e);
     } finally {
       btn.disabled = false;
-      try { await charSensor.startNotifications(); } catch(e) {}
     }
   });
 
