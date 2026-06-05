@@ -1025,21 +1025,16 @@
 
     const binaryStr = firmwareData.reduce((s, b) => s + String.fromCharCode(b), '');
 
-    if (typeof window.ESPLoader === 'undefined') {
+    if (!window._esptooljs) {
       statusEl.textContent = 'Loading flash tool...';
-      await new Promise((res, rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://unpkg.com/esptool-js@0.4.4/bundle.js';
-        s.onload = res;
-        s.onerror = () => rej(new Error('Failed to load esptool-js from CDN'));
-        document.head.appendChild(s);
-      });
+      window._esptooljs = await import('https://unpkg.com/esptool-js@0.4.4/bundle.js');
     }
+    const { ESPLoader, Transport } = window._esptooljs;
 
     statusEl.textContent = 'Select USB serial port...';
     const port = await navigator.serial.requestPort();
-    const transport = new window.Transport(port, true);
-    const esploader = new window.ESPLoader({
+    const transport = new Transport(port, true);
+    const esploader = new ESPLoader({
       transport, baudrate: 460800,
       terminal: { clean: () => {}, writeLine: (m) => { statusEl.textContent = m; }, write: () => {} }
     });
