@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.2.0"
+#define FW_VERSION "2.3.0"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -506,9 +506,9 @@ void setup() {
 
   lastLoopTime = millis();
 
-  Serial.println("[OK] Stark Clutch v2 ready.");
-  Serial.printf("  Calib A0: pressed=%d released=%d\n", fullyPressedNVSValueA0, fullyReleasedNVSValueA0);
-  Serial.printf("  Calib A1: pressed=%d released=%d\n", fullyPressedNVSValueA1, fullyReleasedNVSValueA1);
+  Serial.printf("[OK] Stark Clutch v%s ready.\n", FW_VERSION);
+  Serial.printf("  Clutch:   pressed=%d mV  released=%d mV\n", fullyPressedNVSValueA0, fullyReleasedNVSValueA0);
+  Serial.printf("  Throttle: pressed=%d mV  released=%d mV\n", fullyPressedNVSValueA1, fullyReleasedNVSValueA1);
 }
 
 // ════════════════════════════════════════════════════════
@@ -620,14 +620,13 @@ void loop() {
   }
 
   // ── 11. Serial Plotter ──
-  // Все каналы в мВ — одна шкала, калибровочные линии видны как горизонтальные
-  Serial.print("A0:");        Serial.print(filtA0);
-  Serial.print(",A0_max:");   Serial.print(fullyPressedNVSValueA0);
-  Serial.print(",A0_min:");   Serial.print(fullyReleasedNVSValueA0);
-  Serial.print(",A1:");       Serial.print(filtA1);
-  Serial.print(",A1_max:");   Serial.print(fullyPressedNVSValueA1);
-  Serial.print(",A1_min:");   Serial.print(fullyReleasedNVSValueA1);
-  Serial.print(",DAC:");      Serial.println((int)voltage3);
+  Serial.print("Clutch:");      Serial.print(filtA0);
+  Serial.print(",C_pressed:");  Serial.print(fullyPressedNVSValueA0);
+  Serial.print(",C_released:"); Serial.print(fullyReleasedNVSValueA0);
+  Serial.print(",Throttle:");   Serial.print(filtA1);
+  Serial.print(",T_pressed:");  Serial.print(fullyPressedNVSValueA1);
+  Serial.print(",T_released:"); Serial.print(fullyReleasedNVSValueA1);
+  Serial.print(",DAC:");        Serial.println((int)voltage3);
 
   delay(5);
 }

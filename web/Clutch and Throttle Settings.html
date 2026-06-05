@@ -1031,7 +1031,7 @@
         const { Buffer } = await import('https://esm.run/buffer@6.0.3');
         globalThis.Buffer = Buffer;
       }
-      window._esptooljs = await import('https://unpkg.com/esptool-js@0.4.4/bundle.js');
+      window._esptooljs = await import('https://unpkg.com/esptool-js/bundle.js');
     }
     const { ESPLoader, Transport } = window._esptooljs;
 
@@ -1047,15 +1047,27 @@
     const chip = await esploader.main();
     statusEl.textContent = `${chip} — writing firmware...`;
 
-    await esploader.write_flash({
-      fileArray: [{ data: binaryStr, address: 0x10000 }],
-      flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
-      eraseAll: false, compress: true,
-    }, (idx, written, total) => {
+    const progressCb = (idx, written, total) => {
       const pct = Math.round(written / total * 100);
       barEl.value = pct; pctEl.textContent = pct + '%';
       statusEl.textContent = `Writing: ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`;
-    });
+    };
+
+    const fileArray = [{ data: binaryStr, address: 0x10000 }];
+
+    if (typeof esploader.write_flash === 'function') {
+      // 0.4.x API: options object
+      await esploader.write_flash({
+        fileArray, flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
+        eraseAll: false, compress: true,
+      }, progressCb);
+    } else if (typeof esploader.flash_data === 'function') {
+      // alternative method name
+      await esploader.flash_data(fileArray, progressCb);
+    } else {
+      const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(esploader)).join(', ');
+      throw new Error('write_flash not found. Available: ' + methods);
+    }
 
     await esploader.hard_reset();
     await transport.disconnect();
