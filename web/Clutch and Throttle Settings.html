@@ -1069,26 +1069,13 @@
       pctEl.textContent = `${pct}%  ·  ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`;
     };
 
-    if (typeof esploader.write_flash === 'function') {
-      await esploader.write_flash({
-        fileArray: [{ data: binaryStr, address: 0x10000 }],
-        flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
-        eraseAll: false, compress: true,
-      }, progressCb);
-    } else {
-      // Диагностика: показываем все доступные методы
-      const methods = new Set();
-      let o = esploader;
-      while (o && o !== Object.prototype) {
-        Object.getOwnPropertyNames(o)
-          .filter(n => typeof esploader[n] === 'function')
-          .forEach(n => methods.add(n));
-        o = Object.getPrototypeOf(o);
-      }
-      throw new Error('write_flash не найден. Доступные методы: ' + [...methods].join(', '));
-    }
+    await esploader.writeFlash({
+      fileArray: [{ data: binaryStr, address: 0x10000 }],
+      flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
+      eraseAll: false, compress: true,
+    }, progressCb);
 
-    await esploader.hard_reset();
+    await esploader.hardReset();
     await transport.disconnect();
     barEl.value = 100; pctEl.textContent = '100%';
     statusEl.textContent = '✓ Done! Device rebooting...';
