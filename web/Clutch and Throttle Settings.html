@@ -1020,7 +1020,10 @@
   async function doUsbFlash(firmwareData, statusEl, barEl, pctEl) {
     if (!('serial' in navigator)) throw new Error('Web Serial not supported — use Chrome or Edge');
 
-    const binaryStr = firmwareData.reduce((s, b) => s + String.fromCharCode(b), '');
+    // Эффективная конвертация Uint8Array → binary string чанками
+    let binaryStr = '';
+    for (let i = 0; i < firmwareData.length; i += 0x8000)
+      binaryStr += String.fromCharCode.apply(null, firmwareData.subarray(i, i + 0x8000));
 
     if (!window._esptooljs) {
       statusEl.textContent = 'Loading flash tool...';
@@ -1028,42 +1031,61 @@
         const { Buffer } = await import('https://esm.run/buffer@6.0.3');
         globalThis.Buffer = Buffer;
       }
-      window._esptooljs = await import('https://unpkg.com/esptool-js/bundle.js');
+      // Фиксированная версия — стабильный API
+      window._esptooljs = await import('https://cdn.jsdelivr.net/npm/esptool-js@0.4.3/bundle.js');
     }
-    const { ESPLoader, Transport } = window._esptooljs;
 
-    statusEl.textContent = 'Select USB serial port...';
+    // Поддержка как named exports, так и default export (зависит от сборки)
+    const mod = window._esptooljs;
+    const ESPLoader = mod.ESPLoader ?? mod.default?.ESPLoader;
+    const Transport  = mod.Transport  ?? mod.default?.Transport;
+    if (!ESPLoader || !Transport) throw new Error('esptool-js: ESPLoader/Transport не найдены в модуле');
+
+    const terminal = {
+      clean: () => {},
+      writeLine: (m) => { console.log('[esptool]', m); statusEl.textContent = m; },
+      write:     (m) => { console.log('[esptool]', m); }
+    };
+
+    statusEl.textContent = 'Select USB port — hold BOOT button on device...';
     const port = await navigator.serial.requestPort();
     const transport = new Transport(port, true);
-    const esploader = new ESPLoader({
-      transport, baudrate: 460800,
-      terminal: { clean: () => {}, writeLine: (m) => { statusEl.textContent = m; }, write: () => {} }
-    });
 
-    statusEl.textContent = 'Connecting to ESP32...';
-    const chip = await esploader.main();
-    statusEl.textContent = `${chip} — writing firmware...`;
+    // 0.4.x — options object; если бросит, пробуем 0.3.x — positional args
+    let esploader;
+    try      { esploader = new ESPLoader({ transport, baudrate: 460800, terminal }); }
+    catch(e) { esploader = new ESPLoader(transport, 460800, terminal); }
+
+    statusEl.textContent = 'Connecting...';
+    // 0.4.x: main()  /  0.3.x: main_fn()
+    const chip = typeof esploader.main === 'function'
+      ? await esploader.main()
+      : await esploader.main_fn();
+    statusEl.textContent = `${chip} — writing...`;
 
     const progressCb = (idx, written, total) => {
       const pct = Math.round(written / total * 100);
-      barEl.value = pct; pctEl.textContent = pct + '%';
-      statusEl.textContent = `Writing: ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`;
+      barEl.value = pct;
+      pctEl.textContent = `${pct}%  ·  ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`;
     };
 
-    const fileArray = [{ data: binaryStr, address: 0x10000 }];
-
     if (typeof esploader.write_flash === 'function') {
-      // 0.4.x API: options object
       await esploader.write_flash({
-        fileArray, flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
+        fileArray: [{ data: binaryStr, address: 0x10000 }],
+        flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
         eraseAll: false, compress: true,
       }, progressCb);
-    } else if (typeof esploader.flash_data === 'function') {
-      // alternative method name
-      await esploader.flash_data(fileArray, progressCb);
     } else {
-      const methods = Object.getOwnPropertyNames(Object.getPrototypeOf(esploader)).join(', ');
-      throw new Error('write_flash not found. Available: ' + methods);
+      // Диагностика: показываем все доступные методы
+      const methods = new Set();
+      let o = esploader;
+      while (o && o !== Object.prototype) {
+        Object.getOwnPropertyNames(o)
+          .filter(n => typeof esploader[n] === 'function')
+          .forEach(n => methods.add(n));
+        o = Object.getPrototypeOf(o);
+      }
+      throw new Error('write_flash не найден. Доступные методы: ' + [...methods].join(', '));
     }
 
     await esploader.hard_reset();
