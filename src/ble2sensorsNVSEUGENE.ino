@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.6.0"
+#define FW_VERSION "2.5.0"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -632,7 +632,10 @@ void loop() {
   Serial.print(",A1:");       Serial.print(filtA1);
   Serial.print(",A1_max:");   Serial.print(fullyPressedNVSValueA1);
   Serial.print(",A1_min:");   Serial.print(fullyReleasedNVSValueA1);
-  Serial.print(",DAC:");      Serial.print((int)voltage3);
+  // DAC в шкале A1 (min..max) — визуально сравнимо с газом
+  int dacScaled = fullyReleasedNVSValueA1 +
+    (int)((fullyPressedNVSValueA1 - fullyReleasedNVSValueA1) * (outputFinal / 100.0f));
+  Serial.print(",DAC:");      Serial.print(dacScaled);
   Serial.print(",FW:");       Serial.println(FW_VERSION);
 
   delay(20);
