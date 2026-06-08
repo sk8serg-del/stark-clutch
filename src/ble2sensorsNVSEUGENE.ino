@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.6.1"
+#define FW_VERSION "2.7.0"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -52,6 +52,7 @@ BLECharacteristic* fwFallUnloadedChar  = NULL;
 BLECharacteristic* fwHangDurChar       = NULL;
 BLECharacteristic* fwHangThrChar       = NULL;
 BLECharacteristic* fwSnapBoostChar     = NULL;
+BLECharacteristic* fwSnapThrChar       = NULL;
 BLECharacteristic* fwSnapFallChar      = NULL;
 BLECharacteristic* emergencyModeChar   = NULL;
 BLECharacteristic* fwVersionChar       = NULL;
@@ -91,6 +92,7 @@ float fallUnloaded       = 400.0f;  // спад без нагрузки
 float hangDuration       = 200.0f;  // мс зависания оборотов
 float hangThreshold      = 15.0f;   // скорость выжима для срабатывания
 float snapBoost          = 1.3f;    // множитель всплеска при броске
+float snapThreshold      = 15.0f;   // скорость отпускания сцепления для срабатывания snap
 float snapDuration       = 100.0f;  // мс — как долго спадает от snapBoost до 1.0
 
 // ── Аварийный режим ──
@@ -164,11 +166,12 @@ struct FlywheelParams {
   float riseLoaded, fallLoaded, riseUnloaded, fallUnloaded;
   float hangDuration, hangThreshold;
   float snapBoost, snapDuration;
+  float snapThreshold;
 };
 
 void saveFlywheelParams() {
   FlywheelParams p = { riseLoaded, fallLoaded, riseUnloaded, fallUnloaded,
-                       hangDuration, hangThreshold, snapBoost, snapDuration };
+                       hangDuration, hangThreshold, snapBoost, snapDuration, snapThreshold };
   nvs_handle_t h;
   if (nvs_open("storage", NVS_READWRITE, &h) == ESP_OK) {
     nvs_set_blob(h, "flywheelP", &p, sizeof(p));
@@ -180,7 +183,7 @@ void saveFlywheelParams() {
 
 void loadFlywheelParams() {
   FlywheelParams p = { riseLoaded, fallLoaded, riseUnloaded, fallUnloaded,
-                       hangDuration, hangThreshold, snapBoost, snapDuration };
+                       hangDuration, hangThreshold, snapBoost, snapDuration, snapThreshold };
   nvs_handle_t h;
   if (nvs_open("storage", NVS_READONLY, &h) == ESP_OK) {
     size_t size = sizeof(p);
@@ -189,6 +192,7 @@ void loadFlywheelParams() {
       riseUnloaded = p.riseUnloaded; fallUnloaded = p.fallUnloaded;
       hangDuration  = p.hangDuration;  hangThreshold = p.hangThreshold;
       snapBoost     = p.snapBoost;     snapDuration  = p.snapDuration;
+      if (size >= sizeof(p)) snapThreshold = p.snapThreshold;
       Serial.println("[NVS] Flywheel params loaded.");
     } else {
       Serial.println("[NVS] No flywheel params, using defaults.");
@@ -466,6 +470,11 @@ void setup() {
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
   fwSnapBoostChar->setCallbacks(new FloatParamCallbacks(&snapBoost));
 
+  fwSnapThrChar = pService->createCharacteristic(
+    "19b10014-e8f2-537e-4f6c-d104768a1214",
+    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+  fwSnapThrChar->setCallbacks(new FloatParamCallbacks(&snapThreshold));
+
   fwSnapFallChar = pService->createCharacteristic(
     "19b10015-e8f2-537e-4f6c-d104768a1214",
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
@@ -582,7 +591,7 @@ void loop() {
     if (hangActive && (int32_t)(now - hangTimer) >= 0) hangActive = false;
 
     // ── 6. Бросок сцепления ──
-    if (-clutchDelta > hangThreshold && currentOutput > 10.0f) {
+    if (-clutchDelta > snapThreshold && currentOutput > 10.0f) {
       snapLevel = snapBoost;
     }
 
