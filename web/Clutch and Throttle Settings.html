@@ -188,12 +188,12 @@
         <h3>Flywheel Effect <button class="info-btn" onclick="showInfo('Flywheel Effect','<p>Simulates the inertia of a flywheel — the engine cannot change speed instantly.</p><p><b>Acceleration Under Load (clutch released):</b> how slowly the throttle signal rises when the wheel is connected. Low value = heavy flywheel feel.</p><p><b>Deceleration Under Load:</b> how slowly it falls when you close the throttle under load.</p><p><b>Acceleration Under No Load (clutch pressed):</b> how fast the engine revs up freely with the clutch in.</p><p><b>Deceleration Under No Load:</b> how fast revs drop with clutch pressed.</p>')">i</button></h3>
         <label>Flywheel Acceleration Under Load (clutch released)</label>
         <div class="slider-row">
-          <input type="range" id="fw_riseLoaded" min="1" max="200" value="5">
+          <input type="range" id="fw_riseLoaded" min="1" max="500" value="250">
           <span class="slider-value" id="fw_riseLoaded_val">5</span>
         </div>
         <label>Flywheel Deceleration Under Load (clutch released)</label>
         <div class="slider-row">
-          <input type="range" id="fw_fallLoaded" min="1" max="200" value="8">
+          <input type="range" id="fw_fallLoaded" min="1" max="500" value="250">
           <span class="slider-value" id="fw_fallLoaded_val">8</span>
         </div>
         <label>Flywheel Acceleration Under No Load (clutch pressed)</label>
@@ -389,8 +389,8 @@
     slider1:          { min: 1,   max: 30  },  // кривая сцепления — коэффициент
     slider3:          { min: 1,   max: 30  },  // кривая газа — коэффициент
     slider4:          { min: 1,   max: 81  },  // шаг кривой
-    fw_riseLoaded:    { min: 1,   max: 450 },  // нарастание под нагрузкой (%/сек)
-    fw_fallLoaded:    { min: 1,   max: 450 },  // спад под нагрузкой (%/сек)
+    fw_riseLoaded:    { min: 1,   max: 500 },  // нарастание под нагрузкой (%/сек)
+    fw_fallLoaded:    { min: 1,   max: 500 },  // спад под нагрузкой (%/сек)
     fw_riseUnloaded:  { min: 1,   max: 500 },  // нарастание без нагрузки (%/сек)
     fw_fallUnloaded:  { min: 1,   max: 500 },  // спад без нагрузки (%/сек)
     fw_hangDuration:  { min: 0,   max: 500 },  // зависание оборотов (мс)
