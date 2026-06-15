@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.7.1"
+#define FW_VERSION "2.7.2"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -112,6 +112,7 @@ float    snapLevel     = 1.0f;   // текущий уровень snap (1.0 = н
 uint32_t hangTimer     = 0;
 bool     hangActive    = false;
 uint32_t lastLoopTime  = 0;
+uint8_t  bleNotifySkip = 0;      // счётчик пропуска BLE notify
 
 // ════════════════════════════════════════════════════════
 //  NVS
@@ -621,13 +622,14 @@ void loop() {
     dacSetVoltage((uint16_t)(voltage3 * 0.79f));
   }
 
-  // ── 10. BLE notify ──
-  String data = String(filtA0)  + "," + String(fullyPressedNVSValueA0) + "," +
-                String(fullyReleasedNVSValueA0) + "," +
-                String(filtA1)  + "," + String(fullyPressedNVSValueA1) + "," +
-                String(fullyReleasedNVSValueA1) + "," +
-                String(outputFinal, 1);
-  if (deviceConnected) {
+  // ── 10. BLE notify (раз в 20 циклов = ~100мс, чтобы не тормозить управление) ──
+  if (deviceConnected && ++bleNotifySkip >= 20) {
+    bleNotifySkip = 0;
+    String data = String(filtA0)  + "," + String(fullyPressedNVSValueA0) + "," +
+                  String(fullyReleasedNVSValueA0) + "," +
+                  String(filtA1)  + "," + String(fullyPressedNVSValueA1) + "," +
+                  String(fullyReleasedNVSValueA1) + "," +
+                  String(outputFinal, 1);
     sensorCharacteristic->setValue(data.c_str());
     sensorCharacteristic->notify();
     sensorA1Characteristic->setValue(data.c_str());
@@ -647,5 +649,5 @@ void loop() {
   Serial.print(",DAC:");      Serial.print(dacScaled);
   Serial.print(",FW:");       Serial.println(FW_VERSION);
 
-  delay(20);
+  delay(5);
 }
