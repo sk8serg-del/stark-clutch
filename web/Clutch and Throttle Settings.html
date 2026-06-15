@@ -106,7 +106,7 @@
   <div class="info-box">
     <h4 style="color:#e53935;">⚠ Emergency Limp Mode</h4>
     <p>Use this mode only when the throttle is broken and you need to get home.</p>
-    <p>The clutch lever will control the throttle — <b>fully pressed = 10% power</b>.</p>
+    <p>The clutch lever will control the throttle — <b>max 20% power, very slow rise (5%/sec)</b>.</p>
     <p style="color:#e53935; font-weight:bold;">⚠ Dangerous — do not ride at speed. Limp home only.</p>
     <div style="display:flex; gap:8px; margin-top:12px;">
       <button id="emergencyYes" style="flex:1; padding:10px; background:#e53935; color:white; border:none; border-radius:6px; font-size:15px; cursor:pointer; font-weight:bold;">Yes, Enable</button>
@@ -185,7 +185,7 @@
     <!-- Flywheel v2 слайдеры (новая прошивка) -->
     <div id="flywheelSection" class="section">
       <div class="card">
-        <h3>Flywheel Effect <button class="info-btn" onclick="showInfo('Flywheel Effect','<p>Simulates the inertia of a flywheel — the engine cannot change speed instantly.</p><p><b>Acceleration Under Load (clutch released):</b> how slowly the throttle signal rises when the wheel is connected. Low value = heavy flywheel feel.</p><p><b>Deceleration Under Load:</b> how slowly it falls when you close the throttle under load.</p><p><b>Acceleration Under No Load (clutch pressed):</b> how fast the engine revs up freely with the clutch in.</p><p><b>Deceleration Under No Load:</b> how fast revs drop with clutch pressed.</p>')">i</button></h3>
+        <h3>Flywheel Effect <button class="info-btn" onclick="showInfo('Flywheel Effect','<p>Simulates flywheel inertia — the engine cannot change speed instantly. Values are in %/sec (how fast the signal can change per second).</p><p><b>Acceleration Under Load (clutch released):</b> rise speed when wheel is connected. 1 = very heavy flywheel, 500 = almost instant. Range: 1–500.</p><p><b>Deceleration Under Load:</b> fall speed when closing throttle under load. Range: 1–500.</p><p><b>Acceleration Under No Load (clutch pressed):</b> how fast revs rise freely. Range: 1–500.</p><p><b>Deceleration Under No Load:</b> how fast revs drop with clutch pressed. Range: 1–500.</p>')">i</button></h3>
         <label>Flywheel Acceleration Under Load (clutch released)</label>
         <div class="slider-row">
           <input type="range" id="fw_riseLoaded" min="1" max="500" value="250">
@@ -208,7 +208,7 @@
         </div>
       </div>
       <div class="card">
-        <h3>Rev Hang <button class="info-btn" onclick="showInfo('Rev Hang','<p>On a 2-stroke, revs do not drop immediately when you quickly pull the clutch — they hang for a moment before falling.</p><p><b>Hang Duration:</b> how long (ms) the revs stay high after a fast clutch pull. 0 = no hang, 300 = noticeable hang.</p><p><b>Hang Threshold:</b> how fast you must pull the clutch to trigger the effect. Low = triggers even on slow pull. High = only on a sharp snap.</p>')">i</button></h3>
+        <h3>Rev Hang <button class="info-btn" onclick="showInfo('Rev Hang','<p>On a 2-stroke, revs do not drop immediately when you quickly pull the clutch — they hang for a moment before falling.</p><p><b>Hang Duration:</b> how long (ms) the revs stay high after a fast clutch pull. 0 = no hang, 500 = maximum hang. Range: 0–500.</p><p><b>Hang Threshold:</b> how fast you must pull the clutch to trigger the effect. Low = triggers even on slow pull. High = only on a sharp pull. Range: 1–50.</p>')">i</button></h3>
         <label>Hang duration (ms)</label>
         <div class="slider-row">
           <input type="range" id="fw_hangDuration" min="0" max="500" value="200">
@@ -221,7 +221,7 @@
         </div>
       </div>
       <div class="card">
-        <h3>Clutch Snap <button class="info-btn" onclick="showInfo('Clutch Snap','<p>When you release the clutch lever sharply with high revs, there is a brief torque spike — this is what lifts the front wheel.</p><p><b>Snap Boost:</b> how much the signal spikes on snap release. 130 = +30% boost at the moment of release.</p><p><b>Snap Threshold:</b> how fast you must release the clutch to trigger snap. Low = triggers on any release. High = only on a very sharp snap. Independent from Hang Threshold.</p><p><b>Snap Duration:</b> how long (ms) the boost takes to decay back to normal. 100ms = sharp hit, 300ms = sustained pull.</p>')">i</button></h3>
+        <h3>Clutch Snap <button class="info-btn" onclick="showInfo('Clutch Snap','<p>When you release the clutch lever sharply with high revs, there is a brief torque spike — this is what lifts the front wheel.</p><p><b>Snap Boost:</b> how much the signal spikes on snap release. 100 = no boost, 132 = +32%, 200 = double. Range: 100–200.</p><p><b>Snap Threshold:</b> how fast you must release the clutch to trigger snap. Low = triggers on any release. High = only on a very sharp snap. Independent from Hang Threshold. Range: 1–900.</p><p><b>Snap Duration:</b> how long (ms) the boost takes to decay back to normal. 10ms = instant, 500ms = long sustained pull. Range: 10–500.</p>')">i</button></h3>
         <label>Snap boost (%)</label>
         <div class="slider-row">
           <input type="range" id="fw_snapBoost" min="100" max="200" value="130">
