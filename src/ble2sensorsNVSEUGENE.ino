@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.7.3"
+#define FW_VERSION "2.7.4"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -567,7 +567,7 @@ void loop() {
   if (emergencyMode) {
     float emergencyTarget = clutchPct * 0.20f;  // 0..20%
     if (emergencyTarget > currentOutput)
-      currentOutput = min(currentOutput + 15.0f * dt, emergencyTarget);  // 15%/сек нарастание
+      currentOutput = min(currentOutput + 5.0f * dt, emergencyTarget);   // 5%/сек нарастание
     else
       currentOutput = max(currentOutput - 100.0f * dt, emergencyTarget); // быстрое падение
     outputFinal = currentOutput;
