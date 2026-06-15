@@ -324,10 +324,6 @@
 
       <div id="usbSerialWrap">
         <hr style="margin:14px 0 10px; border:none; border-top:1px solid #eee;">
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#e53935; margin-bottom:8px; cursor:pointer;">
-          <input type="checkbox" id="eraseNvsCheck" style="width:16px; height:16px; margin:0;">
-          Erase settings (reset to factory defaults)
-        </label>
         <p style="font-size:13px; color:#aaa; margin:0 0 4px; text-align:center;">or flash from file</p>
         <input type="file" id="usbFile" accept=".bin"
                style="display:block; margin:4px 0; font-size:14px; width:100%; box-sizing:border-box;">
@@ -1052,7 +1048,8 @@
   }
 
   // ── USB Flash: общая функция ──
-  async function doUsbFlash(firmwareData, statusEl, barEl, pctEl, eraseNvs = false) {
+  async function doUsbFlash(firmwareData, statusEl, barEl, pctEl) {
+    const eraseNvs = true;
     if (!('serial' in navigator)) throw new Error('Web Serial not supported — use Chrome or Edge');
 
     // Эффективная конвертация Uint8Array → binary string чанками
@@ -1167,8 +1164,7 @@
       const r = await fetch(FW_BIN_URL + '?_=' + Date.now());
       if (!r.ok) throw new Error('Download error: ' + r.status);
       const data = new Uint8Array(await r.arrayBuffer());
-      const eraseNvs = document.getElementById('eraseNvsCheck').checked;
-      await doUsbFlash(data, status, bar, pct, eraseNvs);
+      await doUsbFlash(data, status, bar, pct);
     } catch(e) {
       status.textContent = '✗ ' + e.message;
       console.error('USB download flash:', e);
