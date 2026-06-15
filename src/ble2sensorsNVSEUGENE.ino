@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.7.0"
+#define FW_VERSION "2.7.1"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -79,21 +79,21 @@ static const float FILTER_GAS_FAST    = 0.3f;   // газ — быстрая к�
 static const float FILTER_GAS_SLOW    = 0.15f;  // газ — медленная компонента
 
 // ── Кривые педалей ──
-double defaultcoefficients1[11] = { 0,6,14,30,54,71,81,86,90,94,100 };
-double defaultcoefficients2[11] = { 0,18,28,37,45,53,61,70,80,90,100 };
-double coefficients1[11]        = { 0,6,14,30,54,71,81,86,90,94,100 };
-double coefficients2[11]        = { 0,18,28,37,45,53,61,70,80,90,100 };
+double defaultcoefficients1[11] = { 0,6,8,13,22,37,62,78,88,94,100 };
+double defaultcoefficients2[11] = { 0,10,20,30,40,50,60,70,80,90,100 };
+double coefficients1[11]        = { 0,6,8,13,22,37,62,78,88,94,100 };
+double coefficients2[11]        = { 0,10,20,30,40,50,60,70,80,90,100 };
 
 // ── Flywheel параметры (% в секунду для rate limiter) ──
-float riseLoaded         = 100.0f;  // нарастание под нагрузкой
-float fallLoaded         = 150.0f;  // спад под нагрузкой
-float riseUnloaded       = 300.0f;  // нарастание без нагрузки
-float fallUnloaded       = 400.0f;  // спад без нагрузки
-float hangDuration       = 200.0f;  // мс зависания оборотов
+float riseLoaded         = 250.0f;  // нарастание под нагрузкой
+float fallLoaded         = 250.0f;  // спад под нагрузкой
+float riseUnloaded       = 500.0f;  // нарастание без нагрузки
+float fallUnloaded       = 500.0f;  // спад без нагрузки
+float hangDuration       = 500.0f;  // мс зависания оборотов
 float hangThreshold      = 15.0f;   // скорость выжима для срабатывания
-float snapBoost          = 1.3f;    // множитель всплеска при броске
-float snapThreshold      = 15.0f;   // скорость отпускания сцепления для срабатывания snap
-float snapDuration       = 100.0f;  // мс — как долго спадает от snapBoost до 1.0
+float snapBoost          = 1.32f;   // множитель всплеска при броске
+float snapThreshold      = 378.0f;  // скорость отпускания сцепления для срабатывания snap
+float snapDuration       = 500.0f;  // мс — как долго спадает от snapBoost до 1.0
 
 // ── Аварийный режим ──
 bool emergencyMode = false;
