@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.7.2"
+#define FW_VERSION "2.7.3"
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
@@ -561,12 +561,16 @@ void loop() {
   float gasPct = (rangeA1 != 0) ?
     constrain((float)(filtA1 - fullyReleasedNVSValueA1) / rangeA1 * 100.0f, 0.0f, 100.0f) : 0.0f;
 
-  // ── АВАРИЙНЫЙ РЕЖИМ: сцепление → газ ──
+  // ── АВАРИЙНЫЙ РЕЖИМ: сцепление → газ, плавно, макс 20% ──
   float voltage3;
   float outputFinal;
   if (emergencyMode) {
-    // Рычаг сцепления → 0–5% газа (лимит безопасности)
-    outputFinal = clutchPct * 0.10f;  // весь ход рычага = 0..10%
+    float emergencyTarget = clutchPct * 0.20f;  // 0..20%
+    if (emergencyTarget > currentOutput)
+      currentOutput = min(currentOutput + 15.0f * dt, emergencyTarget);  // 15%/сек нарастание
+    else
+      currentOutput = max(currentOutput - 100.0f * dt, emergencyTarget); // быстрое падение
+    outputFinal = currentOutput;
     voltage3 = 1000.0f + 3000.0f * (outputFinal / 100.0f);
     dacSetVoltage((uint16_t)(voltage3 * 0.79f));
 
