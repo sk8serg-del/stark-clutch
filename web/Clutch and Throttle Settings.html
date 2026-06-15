@@ -324,6 +324,10 @@
 
       <div id="usbSerialWrap">
         <hr style="margin:14px 0 10px; border:none; border-top:1px solid #eee;">
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px; color:#e53935; margin-bottom:8px; cursor:pointer;">
+          <input type="checkbox" id="eraseNvsCheck" style="width:16px; height:16px; margin:0;">
+          Erase settings (reset to factory defaults)
+        </label>
         <p style="font-size:13px; color:#aaa; margin:0 0 4px; text-align:center;">or flash from file</p>
         <input type="file" id="usbFile" accept=".bin"
                style="display:block; margin:4px 0; font-size:14px; width:100%; box-sizing:border-box;">
@@ -1048,7 +1052,7 @@
   }
 
   // ── USB Flash: общая функция ──
-  async function doUsbFlash(firmwareData, statusEl, barEl, pctEl) {
+  async function doUsbFlash(firmwareData, statusEl, barEl, pctEl, eraseNvs = false) {
     if (!('serial' in navigator)) throw new Error('Web Serial not supported — use Chrome or Edge');
 
     // Эффективная конвертация Uint8Array → binary string чанками
@@ -1100,8 +1104,21 @@
       pctEl.textContent = `${pct}%  ·  ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`;
     };
 
+    const fileArray = [];
+    if (eraseNvs) {
+      // NVS partition: 0x9000, size 0x5000 — заполняем 0xFF (стёртый flash)
+      statusEl.textContent = 'Erasing NVS...';
+      const nvsBlank = new Uint8Array(0x5000).fill(0xFF);
+      let nvsStr = '';
+      for (let i = 0; i < nvsBlank.length; i += 0x8000)
+        nvsStr += String.fromCharCode.apply(null, nvsBlank.subarray(i, i + 0x8000));
+      fileArray.push({ data: nvsStr, address: 0x9000 });
+    }
+    fileArray.push({ data: binaryStr, address: 0x10000 });
+
+    statusEl.textContent = `${chip} — writing...`;
     await esploader.writeFlash({
-      fileArray: [{ data: binaryStr, address: 0x10000 }],
+      fileArray,
       flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
       eraseAll: false, compress: true,
     }, progressCb);
@@ -1150,7 +1167,8 @@
       const r = await fetch(FW_BIN_URL + '?_=' + Date.now());
       if (!r.ok) throw new Error('Download error: ' + r.status);
       const data = new Uint8Array(await r.arrayBuffer());
-      await doUsbFlash(data, status, bar, pct);
+      const eraseNvs = document.getElementById('eraseNvsCheck').checked;
+      await doUsbFlash(data, status, bar, pct, eraseNvs);
     } catch(e) {
       status.textContent = '✗ ' + e.message;
       console.error('USB download flash:', e);
@@ -1169,7 +1187,8 @@
     document.getElementById('usbProgressWrap').style.display = 'block';
     bar.value = 0; pct.textContent = '0%';
     try {
-      await doUsbFlash(new Uint8Array(await file.arrayBuffer()), status, bar, pct);
+      const eraseNvs = document.getElementById('eraseNvsCheck').checked;
+      await doUsbFlash(new Uint8Array(await file.arrayBuffer()), status, bar, pct, eraseNvs);
     } catch(e) {
       status.textContent = '✗ ' + e.message;
       console.error('USB file flash:', e);
