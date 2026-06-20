@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION_BASE "2.7.6"
+#define FW_VERSION_BASE "2.7.7"
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   #define FW_VERSION FW_VERSION_BASE "-S3"
 #else
@@ -117,7 +117,8 @@ float    snapLevel     = 1.0f;   // текущий уровень snap (1.0 = н
 uint32_t hangTimer     = 0;
 bool     hangActive    = false;
 uint32_t lastLoopTime  = 0;
-uint8_t  bleNotifySkip = 0;      // счётчик пропуска BLE notify
+uint8_t  bleNotifySkip  = 0;     // счётчик пропуска BLE notify
+uint8_t  serialPrintSkip = 0;   // счётчик пропуска Serial print
 
 // ════════════════════════════════════════════════════════
 //  NVS
@@ -651,18 +652,20 @@ void loop() {
     sensorA1Characteristic->notify();
   }
 
-  // ── 11. Serial Plotter ──
-  Serial.print("A0:");        Serial.print(filtA0);
-  Serial.print(",A0_max:");   Serial.print(fullyPressedNVSValueA0);
-  Serial.print(",A0_min:");   Serial.print(fullyReleasedNVSValueA0);
-  Serial.print(",A1:");       Serial.print(filtA1);
-  Serial.print(",A1_max:");   Serial.print(fullyPressedNVSValueA1);
-  Serial.print(",A1_min:");   Serial.print(fullyReleasedNVSValueA1);
-  // DAC в шкале A1 (min..max) — визуально сравнимо с газом
-  int dacScaled = fullyReleasedNVSValueA1 +
-    (int)((fullyPressedNVSValueA1 - fullyReleasedNVSValueA1) * (outputFinal / 100.0f));
-  Serial.print(",DAC:");      Serial.print(dacScaled);
-  Serial.print(",FW:");       Serial.println(FW_VERSION);
+  // ── 11. Serial Plotter — раз в 10 циклов (~20Hz), не блокирует управление ──
+  if (++serialPrintSkip >= 10) {
+    serialPrintSkip = 0;
+    Serial.print("A0:");        Serial.print(filtA0);
+    Serial.print(",A0_max:");   Serial.print(fullyPressedNVSValueA0);
+    Serial.print(",A0_min:");   Serial.print(fullyReleasedNVSValueA0);
+    Serial.print(",A1:");       Serial.print(filtA1);
+    Serial.print(",A1_max:");   Serial.print(fullyPressedNVSValueA1);
+    Serial.print(",A1_min:");   Serial.print(fullyReleasedNVSValueA1);
+    int dacScaled = fullyReleasedNVSValueA1 +
+      (int)((fullyPressedNVSValueA1 - fullyReleasedNVSValueA1) * (outputFinal / 100.0f));
+    Serial.print(",DAC:");      Serial.print(dacScaled);
+    Serial.print(",FW:");       Serial.println(FW_VERSION);
+  }
 
   delay(5);
 }
