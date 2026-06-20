@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION_BASE "2.7.5"
+#define FW_VERSION_BASE "2.7.6"
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   #define FW_VERSION FW_VERSION_BASE "-S3"
 #else
@@ -631,9 +631,15 @@ void loop() {
     dacSetVoltage((uint16_t)(voltage3 * 0.79f));
   }
 
-  // ── 10. BLE notify (раз в 20 циклов = ~100мс, чтобы не тормозить управление) ──
+  // ── 10. BLE notify ──
+  // S3: BLE на Core 0 — notify() не блокирует управление, отправляем каждый цикл (~200Hz)
+  // C3: одно ядро — раз в 20 циклов (~10Hz) чтобы не тормозить управление
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  if (deviceConnected) {
+#else
   if (deviceConnected && ++bleNotifySkip >= 20) {
     bleNotifySkip = 0;
+#endif
     String data = String(filtA0)  + "," + String(fullyPressedNVSValueA0) + "," +
                   String(fullyReleasedNVSValueA0) + "," +
                   String(filtA1)  + "," + String(fullyPressedNVSValueA1) + "," +
