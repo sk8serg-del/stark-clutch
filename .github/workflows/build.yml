@@ -44,15 +44,23 @@ jobs:
       - name: Install PlatformIO
         run: pip install platformio
 
-      - name: Build firmware
+      - name: Build firmware C3
         run: pio run -e seeed_xiao_esp32c3
+
+      - name: Build firmware S3
+        run: pio run -e seeed_xiao_esp32s3
 
       - name: Get firmware version
         id: ver
         run: |
-          VER=$(grep -oP '(?<=#define FW_VERSION ")[^"]+' src/ble2sensorsNVSEUGENE.ino)
+          VER=$(grep -oP '(?<=#define FW_VERSION_BASE ")[^"]+' src/ble2sensorsNVSEUGENE.ino)
           echo "version=$VER" >> $GITHUB_OUTPUT
           echo "Version: $VER"
+
+      - name: Rename firmware binaries
+        run: |
+          cp .pio/build/seeed_xiao_esp32c3/firmware.bin firmware_c3.bin
+          cp .pio/build/seeed_xiao_esp32s3/firmware.bin firmware_s3.bin
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
@@ -60,12 +68,15 @@ jobs:
           tag_name: latest
           name: "Firmware v${{ steps.ver.outputs.version }}"
           body: "${{ steps.ver.outputs.version }}"
-          files: .pio/build/seeed_xiao_esp32c3/firmware.bin
+          files: |
+            firmware_c3.bin
+            firmware_s3.bin
           make_latest: true
 
       - name: Add firmware to web folder
         run: |
-          cp .pio/build/seeed_xiao_esp32c3/firmware.bin web/firmware.bin
+          cp firmware_c3.bin web/firmware_c3.bin
+          cp firmware_s3.bin web/firmware_s3.bin
           echo "${{ steps.ver.outputs.version }}" > web/firmware_version.txt
 
       - name: Setup Pages

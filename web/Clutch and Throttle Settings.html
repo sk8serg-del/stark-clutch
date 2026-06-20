@@ -899,7 +899,10 @@
       if (charFwVersion) {
         try {
           const ver = await q.run(() => charFwVersion.readValue());
-          document.getElementById('fwVersionSpan').textContent = new TextDecoder().decode(ver);
+          const verStr = new TextDecoder().decode(ver);
+          document.getElementById('fwVersionSpan').textContent = verStr;
+          if (verStr.endsWith('-S3')) detectedBoard = 'S3';
+          else detectedBoard = 'C3';
         } catch(e) { console.error('fwVersion:', e); }
       }
 
@@ -928,9 +931,10 @@
 
   // ── Кнопки графика ──
   // ── OTA: общая функция прошивки ──
-  // firmware.bin и firmware_version.txt лежат рядом на GitHub Pages (тот же домен, нет CORS)
-  const FW_BIN_URL = 'firmware.bin';
-  const FW_VER_URL = 'firmware_version.txt';
+  // firmware_c3.bin / firmware_s3.bin лежат рядом на GitHub Pages (тот же домен, нет CORS)
+  let   detectedBoard = 'C3';  // обновляется при чтении версии по BLE
+  const FW_VER_URL    = 'firmware_version.txt';
+  function getFwBinUrl() { return 'firmware_' + detectedBoard.toLowerCase() + '.bin'; }
 
   async function flashFirmware(data) {
     if (!charOtaCtrl || !charOtaData) throw new Error('OTA not supported by this firmware');
@@ -1001,7 +1005,7 @@
       const ghVer = (await resp.text()).trim();
       ghSpan.textContent = ghVer;
 
-      const devVer = document.getElementById('fwVersionSpan').textContent.trim();
+      const devVer = document.getElementById('fwVersionSpan').textContent.trim().replace(/-[CS]3$/, '');
       if (devVer !== '—' && devVer === ghVer) {
         ghSpan.style.color = '#24af24';
         avail.style.display = 'none';
@@ -1027,7 +1031,7 @@
     btn.disabled = true;
     try {
       status.textContent = 'Downloading firmware...';
-      const resp = await fetch(FW_BIN_URL + '?_=' + Date.now());
+      const resp = await fetch(getFwBinUrl() + '?_=' + Date.now());
       if (!resp.ok) throw new Error('Download error: ' + resp.status);
       const data = new Uint8Array(await resp.arrayBuffer());
       status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB, flashing over BLE...`;
@@ -1161,7 +1165,7 @@
     bar.value = 0; pct.textContent = '0%';
     try {
       status.textContent = 'Downloading firmware...';
-      const r = await fetch(FW_BIN_URL + '?_=' + Date.now());
+      const r = await fetch(getFwBinUrl() + '?_=' + Date.now());
       if (!r.ok) throw new Error('Download error: ' + r.status);
       const data = new Uint8Array(await r.arrayBuffer());
       await doUsbFlash(data, status, bar, pct);

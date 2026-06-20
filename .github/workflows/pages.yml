@@ -28,10 +28,15 @@ jobs:
       - name: Get firmware from latest release
         run: |
           curl -fsSL \
-            "https://github.com/${{ github.repository }}/releases/latest/download/firmware.bin" \
-            -o web/firmware.bin \
-            && echo "firmware.bin downloaded" \
-            || echo "No release yet — firmware.bin skipped"
+            "https://github.com/${{ github.repository }}/releases/latest/download/firmware_c3.bin" \
+            -o web/firmware_c3.bin \
+            && echo "firmware_c3.bin downloaded" \
+            || echo "No release yet — firmware_c3.bin skipped"
+          curl -fsSL \
+            "https://github.com/${{ github.repository }}/releases/latest/download/firmware_s3.bin" \
+            -o web/firmware_s3.bin \
+            && echo "firmware_s3.bin downloaded" \
+            || echo "No release yet — firmware_s3.bin skipped"
           curl -fsSL \
             "https://api.github.com/repos/${{ github.repository }}/releases/latest" \
             | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('body',''))" \

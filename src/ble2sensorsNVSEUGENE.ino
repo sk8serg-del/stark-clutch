@@ -10,7 +10,12 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION "2.7.4"
+#define FW_VERSION_BASE "2.7.5"
+#ifdef CONFIG_IDF_TARGET_ESP32S3
+  #define FW_VERSION FW_VERSION_BASE "-S3"
+#else
+  #define FW_VERSION FW_VERSION_BASE "-C3"
+#endif
 
 // ── Фильтры шума ──
 GFilterRA analogHall;
