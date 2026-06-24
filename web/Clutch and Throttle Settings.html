@@ -343,6 +343,7 @@
       </p>
       <button id="usbCheckBtn" class="button-full" style="background:#2a86d6;">Check for Update</button>
       <div id="usbUpdateAvail" style="display:none; margin-top:4px;">
+        <select id="usbVersionSelect" style="width:100%; padding:8px; font-size:14px; border-radius:6px; border:1px solid #ccc; margin-bottom:6px; box-sizing:border-box;"></select>
         <button id="usbDownloadFlashBtn" class="button-full" style="background:#607d8b;">Download &amp; Flash via USB Cable</button>
       </div>
 
@@ -382,6 +383,7 @@
         <button id="otaCheckBtn" style="background:#2a86d6; width:97%;" class="button-full">Check for Update</button>
       </div>
       <div id="otaUpdateAvail" style="display:none;">
+        <select id="otaVersionSelect" style="width:100%; padding:8px; font-size:14px; border-radius:6px; border:1px solid #ccc; margin-bottom:6px; box-sizing:border-box;"></select>
         <button id="otaDownloadFlashBtn" class="button-full" style="background:#e67e22;">Download &amp; Flash</button>
         <div id="otaProgressWrap" style="display:none; margin:8px 0 2px;">
           <progress id="otaProgressBar" value="0" max="100" style="width:100%; height:18px;"></progress>
@@ -1014,7 +1016,27 @@
   // firmware_c3.bin / firmware_s3.bin лежат рядом на GitHub Pages (тот же домен, нет CORS)
   let   detectedBoard = 'C3';  // обновляется при чтении версии по BLE
   const FW_VER_URL    = 'firmware_version.txt';
+  const GH_REPO       = 'sk8serg-del/stark-clutch';
   function getFwBinUrl() { return 'firmware_' + detectedBoard.toLowerCase() + '.bin'; }
+
+  async function fetchReleasesList() {
+    const resp = await fetch(`https://api.github.com/repos/${GH_REPO}/releases?per_page=20`);
+    if (!resp.ok) throw new Error('GitHub API error ' + resp.status);
+    return await resp.json();
+  }
+
+  function populateFwSelect(selectEl, releases) {
+    selectEl.innerHTML = '';
+    for (const rel of releases) {
+      const ver  = rel.tag_name.replace(/^v/, '');
+      const asset = rel.assets.find(a => a.name === 'firmware_' + detectedBoard.toLowerCase() + '.bin');
+      if (!asset) continue;
+      const opt  = document.createElement('option');
+      opt.value  = asset.browser_download_url;
+      opt.textContent = ver + (releases.indexOf(rel) === 0 ? ' (latest)' : '');
+      selectEl.appendChild(opt);
+    }
+  }
 
   async function flashFirmware(data) {
     if (!charOtaCtrl || !charOtaData) throw new Error('OTA not supported by this firmware');
@@ -1080,21 +1102,21 @@
     ghSpan.style.color = '#888'; ghSpan.textContent = '...';
 
     try {
-      const resp = await fetch(FW_VER_URL + '?_=' + Date.now());
-      if (!resp.ok) throw new Error('Version file not found (' + resp.status + ')');
-      const ghVer = (await resp.text()).trim();
+      const releases = await fetchReleasesList();
+      if (!releases.length) throw new Error('No releases found');
+      const ghVer = releases[0].tag_name.replace(/^v/, '');
       ghSpan.textContent = ghVer;
+      populateFwSelect(document.getElementById('otaVersionSelect'), releases);
 
       const devVer = document.getElementById('fwVersionSpan').textContent.trim().replace(/-[CS]3$/, '');
       if (devVer !== '—' && devVer === ghVer) {
         ghSpan.style.color = '#24af24';
-        avail.style.display = 'none';
         status.textContent = '✓ Firmware is up to date';
       } else {
         ghSpan.style.color = '#e67e22';
-        avail.style.display = 'block';
         status.textContent = devVer === '—' ? 'Connect device to compare' : `Update available: ${ghVer}`;
       }
+      avail.style.display = 'block';
     } catch(e) {
       ghSpan.textContent = 'Error'; ghSpan.style.color = '#d13a30';
       status.textContent = '✗ ' + e.message;
@@ -1110,8 +1132,10 @@
     const status = document.getElementById('otaStatusMsg');
     btn.disabled = true;
     try {
+      const sel = document.getElementById('otaVersionSelect');
+      const url = sel.value || getFwBinUrl();
       status.textContent = 'Downloading firmware...';
-      const resp = await fetch(getFwBinUrl() + '?_=' + Date.now());
+      const resp = await fetch(url + '?_=' + Date.now());
       if (!resp.ok) throw new Error('Download error: ' + resp.status);
       const data = new Uint8Array(await resp.arrayBuffer());
       status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB, flashing over BLE...`;
@@ -1220,10 +1244,11 @@
     btn.disabled = true; btn.textContent = 'Checking...';
     ghSpan.style.color = '#888'; ghSpan.textContent = '...';
     try {
-      const resp = await fetch(FW_VER_URL + '?_=' + Date.now());
-      if (!resp.ok) throw new Error('Version file not found (' + resp.status + ')');
-      const ghVer = (await resp.text()).trim();
+      const releases = await fetchReleasesList();
+      if (!releases.length) throw new Error('No releases found');
+      const ghVer = releases[0].tag_name.replace(/^v/, '');
       ghSpan.textContent = ghVer; ghSpan.style.color = '#e67e22';
+      populateFwSelect(document.getElementById('usbVersionSelect'), releases);
       avail.style.display = 'block';
       status.textContent = `Available: ${ghVer}`;
     } catch(e) {
@@ -1244,8 +1269,10 @@
     document.getElementById('usbProgressWrap').style.display = 'block';
     bar.value = 0; pct.textContent = '0%';
     try {
+      const sel = document.getElementById('usbVersionSelect');
+      const url = sel.value || getFwBinUrl();
       status.textContent = 'Downloading firmware...';
-      const r = await fetch(getFwBinUrl() + '?_=' + Date.now());
+      const r = await fetch(url + '?_=' + Date.now());
       if (!r.ok) throw new Error('Download error: ' + r.status);
       const data = new Uint8Array(await r.arrayBuffer());
       await doUsbFlash(data, status, bar, pct);
