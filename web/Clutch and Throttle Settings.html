@@ -146,7 +146,7 @@
   </div>
   <p>State: <strong><span id="bleState" style="color:#d13a30;">Disconnected</span></strong></p>
 
-  <div id="pageContent">
+  <div id="pageContent" class="mode-switching">
 
   <!-- ── Блок Lock Bike (появляется если найдена характеристика 0010) ── -->
   <div id="bikeLockSection" class="section">
@@ -981,6 +981,8 @@
           else detectedBoard = 'C3';
         } catch(e) { console.error('fwVersion:', e); }
       }
+
+      document.getElementById('pageContent').classList.remove('mode-switching');
 
     } catch(e) {
       document.getElementById('bleState').textContent = 'Failed: ' + e;
