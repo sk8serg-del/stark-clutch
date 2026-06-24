@@ -61,3 +61,14 @@ jobs:
             firmware_c3.bin
             firmware_s3.bin
           make_latest: true
+
+      - name: Store firmware in web for Pages serving
+        run: |
+          mkdir -p web/firmware/v${{ steps.ver.outputs.version }}
+          cp firmware_c3.bin web/firmware/v${{ steps.ver.outputs.version }}/firmware_c3.bin
+          cp firmware_s3.bin web/firmware/v${{ steps.ver.outputs.version }}/firmware_s3.bin
+          git config user.email "actions@github.com"
+          git config user.name "GitHub Actions"
+          git add web/firmware/
+          git diff --staged --quiet || git commit -m "ci: store firmware v${{ steps.ver.outputs.version }} [skip ci]"
+          git push
