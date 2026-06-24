@@ -1025,17 +1025,22 @@
     return await resp.json();
   }
 
-  function populateFwSelect(selectEl, releases) {
+  async function populateFwSelect(selectEl, releases) {
     selectEl.innerHTML = '';
     let first = true;
     for (const rel of releases) {
       const asset = rel.assets.find(a => a.name === 'firmware_' + detectedBoard.toLowerCase() + '.bin');
       if (!asset) continue;
       const ver = rel.body.trim() || rel.tag_name.replace(/^v/, '');
-      const opt = document.createElement('option');
-      opt.value = first
+      const path = first
         ? 'firmware_' + detectedBoard.toLowerCase() + '.bin'
         : 'firmware/v' + ver + '/firmware_' + detectedBoard.toLowerCase() + '.bin';
+      if (!first) {
+        const check = await fetch(path, { method: 'HEAD' }).catch(() => null);
+        if (!check || !check.ok) continue;
+      }
+      const opt = document.createElement('option');
+      opt.value = path;
       opt.textContent = ver + (first ? ' (latest)' : '');
       selectEl.appendChild(opt);
       first = false;
@@ -1116,7 +1121,7 @@
       if (!releases.length) throw new Error('No releases found');
       const ghVer = releases[0].body.trim() || releases[0].tag_name.replace(/^v/, '');
       ghSpan.textContent = ghVer;
-      populateFwSelect(document.getElementById('otaVersionSelect'), releases);
+      await populateFwSelect(document.getElementById('otaVersionSelect'), releases);
 
       const devVer = document.getElementById('fwVersionSpan').textContent.trim().replace(/-[CS]3$/, '');
       if (devVer !== '—' && devVer === ghVer) {
@@ -1255,7 +1260,7 @@
       if (!releases.length) throw new Error('No releases found');
       const ghVer = releases[0].body.trim() || releases[0].tag_name.replace(/^v/, '');
       ghSpan.textContent = ghVer; ghSpan.style.color = '#e67e22';
-      populateFwSelect(document.getElementById('usbVersionSelect'), releases);
+      await populateFwSelect(document.getElementById('usbVersionSelect'), releases);
       avail.style.display = 'block';
       status.textContent = `Available: ${ghVer}`;
     } catch(e) {
