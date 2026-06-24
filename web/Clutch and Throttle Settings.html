@@ -1005,6 +1005,7 @@
     document.getElementById('otaSection').style.display         = 'none';
     document.getElementById('usbFlashSection').style.display    = 'none';
     if (gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
+    document.getElementById('pageContent').classList.add('mode-switching');
   });
 
   // ── Кнопки графика ──
