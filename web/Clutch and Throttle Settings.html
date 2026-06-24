@@ -1027,14 +1027,16 @@
 
   function populateFwSelect(selectEl, releases) {
     selectEl.innerHTML = '';
+    let first = true;
     for (const rel of releases) {
-      const ver  = rel.tag_name.replace(/^v/, '');
       const asset = rel.assets.find(a => a.name === 'firmware_' + detectedBoard.toLowerCase() + '.bin');
       if (!asset) continue;
-      const opt  = document.createElement('option');
-      opt.value  = asset.browser_download_url;
-      opt.textContent = ver + (releases.indexOf(rel) === 0 ? ' (latest)' : '');
+      const ver = rel.body.trim() || rel.tag_name.replace(/^v/, '');
+      const opt = document.createElement('option');
+      opt.value = asset.browser_download_url;
+      opt.textContent = ver + (first ? ' (latest)' : '');
       selectEl.appendChild(opt);
+      first = false;
     }
   }
 
@@ -1104,7 +1106,7 @@
     try {
       const releases = await fetchReleasesList();
       if (!releases.length) throw new Error('No releases found');
-      const ghVer = releases[0].tag_name.replace(/^v/, '');
+      const ghVer = releases[0].body.trim() || releases[0].tag_name.replace(/^v/, '');
       ghSpan.textContent = ghVer;
       populateFwSelect(document.getElementById('otaVersionSelect'), releases);
 
@@ -1246,7 +1248,7 @@
     try {
       const releases = await fetchReleasesList();
       if (!releases.length) throw new Error('No releases found');
-      const ghVer = releases[0].tag_name.replace(/^v/, '');
+      const ghVer = releases[0].body.trim() || releases[0].tag_name.replace(/^v/, '');
       ghSpan.textContent = ghVer; ghSpan.style.color = '#e67e22';
       populateFwSelect(document.getElementById('usbVersionSelect'), releases);
       avail.style.display = 'block';
