@@ -10,7 +10,7 @@
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
 
-#define FW_VERSION_BASE "2.7.7"
+#define FW_VERSION_BASE "2.8.0"
 #ifdef CONFIG_IDF_TARGET_ESP32S3
   #define FW_VERSION FW_VERSION_BASE "-S3"
 #else
@@ -60,6 +60,8 @@ BLECharacteristic* fwSnapBoostChar     = NULL;
 BLECharacteristic* fwSnapThrChar       = NULL;
 BLECharacteristic* fwSnapFallChar      = NULL;
 BLECharacteristic* emergencyModeChar   = NULL;
+BLECharacteristic* activeModeChar      = NULL;
+BLECharacteristic* savePresetChar      = NULL;
 BLECharacteristic* fwVersionChar       = NULL;
 BLECharacteristic* otaCtrlChar         = NULL;
 BLECharacteristic* otaDataChar         = NULL;
@@ -208,6 +210,61 @@ void loadFlywheelParams() {
   }
 }
 
+// ── Presets (5 режимов) ──
+uint8_t activeMode = 0;
+
+struct Preset {
+  FlywheelParams fw;
+  double coef1[11];
+  double coef2[11];
+};
+
+void applyPreset(const Preset& p) {
+  riseLoaded = p.fw.riseLoaded; fallLoaded = p.fw.fallLoaded;
+  riseUnloaded = p.fw.riseUnloaded; fallUnloaded = p.fw.fallUnloaded;
+  hangDuration = p.fw.hangDuration; hangThreshold = p.fw.hangThreshold;
+  snapBoost = p.fw.snapBoost; snapDuration = p.fw.snapDuration;
+  snapThreshold = p.fw.snapThreshold;
+  memcpy(coefficients1, p.coef1, sizeof(coefficients1));
+  memcpy(coefficients2, p.coef2, sizeof(coefficients2));
+}
+
+void savePreset(uint8_t slot) {
+  char key[10]; snprintf(key, sizeof(key), "preset%d", slot);
+  Preset p;
+  p.fw = { riseLoaded, fallLoaded, riseUnloaded, fallUnloaded,
+           hangDuration, hangThreshold, snapBoost, snapDuration, snapThreshold };
+  memcpy(p.coef1, coefficients1, sizeof(p.coef1));
+  memcpy(p.coef2, coefficients2, sizeof(p.coef2));
+  nvs_handle_t h;
+  if (nvs_open("storage", NVS_READWRITE, &h) == ESP_OK) {
+    nvs_set_blob(h, key, &p, sizeof(p));
+    nvs_commit(h); nvs_close(h);
+    Serial.printf("[NVS] Preset %d saved.\n", slot);
+  }
+}
+
+bool loadPreset(uint8_t slot) {
+  char key[10]; snprintf(key, sizeof(key), "preset%d", slot);
+  Preset p;
+  nvs_handle_t h;
+  if (nvs_open("storage", NVS_READONLY, &h) == ESP_OK) {
+    size_t size = sizeof(p);
+    esp_err_t err = nvs_get_blob(h, key, &p, &size);
+    nvs_close(h);
+    if (err == ESP_OK) {
+      applyPreset(p);
+      saveFlywheelParams();
+      writeArrayToNVS("coefficients1", coefficients1, 11);
+      writeArrayToNVS("coefficients2", coefficients2, 11);
+      Serial.printf("[NVS] Preset %d loaded.\n", slot);
+      return true;
+    }
+  }
+  Serial.printf("[NVS] Preset %d not found.\n", slot);
+  return false;
+}
+
 // ════════════════════════════════════════════════════════
 //  Фильтры
 // ════════════════════════════════════════════════════════
@@ -353,6 +410,30 @@ public:
   }
 };
 
+class ActiveModeCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* c) override {
+    if (c->getLength() < 1) return;
+    uint8_t mode = c->getData()[0];
+    if (mode >= 5) return;
+    activeMode = mode;
+    writeIntToNVS("activeMode", activeMode);
+    loadPreset(activeMode);
+    Serial.printf("[BLE] Mode %d activated.\n", activeMode);
+  }
+  void onRead(BLECharacteristic* c) override {
+    c->setValue(&activeMode, 1);
+  }
+};
+
+class SavePresetCallbacks : public BLECharacteristicCallbacks {
+  void onWrite(BLECharacteristic* c) override {
+    if (c->getLength() < 1) return;
+    uint8_t slot = c->getData()[0];
+    if (slot >= 5) return;
+    savePreset(slot);
+  }
+};
+
 class OtaCtrlCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* c) override {
     std::string val = std::string(c->getValue().c_str());
@@ -405,6 +486,7 @@ void setup() {
   initNVS();
   initFilters();
   loadFlywheelParams();
+  activeMode = (uint8_t)constrain(readIntFromNVS("activeMode"), 0, 4);
   loadEmergencyMode();
   loadDefaultCoefficientsIfNeeded();
 
@@ -415,7 +497,7 @@ void setup() {
   BLEDevice::setMTU(512);
 
   BLEService* pService = pServer->createService(
-    BLEUUID("19b10000-e8f2-537e-4f6c-d104768a1214"), 64, 1);
+    BLEUUID("19b10000-e8f2-537e-4f6c-d104768a1214"), 80, 1);
 
   // Существующие характеристики
   commandCharacteristic = pService->createCharacteristic(
@@ -491,6 +573,17 @@ void setup() {
     "19b10016-e8f2-537e-4f6c-d104768a1214",
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
   emergencyModeChar->setCallbacks(new EmergencyModeCallbacks());
+
+  // Режимы
+  activeModeChar = pService->createCharacteristic(
+    "19b10030-e8f2-537e-4f6c-d104768a1214",
+    BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_WRITE);
+  activeModeChar->setCallbacks(new ActiveModeCallbacks());
+
+  savePresetChar = pService->createCharacteristic(
+    "19b10031-e8f2-537e-4f6c-d104768a1214",
+    BLECharacteristic::PROPERTY_WRITE);
+  savePresetChar->setCallbacks(new SavePresetCallbacks());
 
   // Версия прошивки + OTA
   fwVersionChar = pService->createCharacteristic(

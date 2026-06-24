@@ -58,6 +58,15 @@
       h1 { font-size: 22px; }
       button { font-size: 13px; }
     }
+    .mode-btn {
+      flex: 1; background: #888; color: white; border: none;
+      border-radius: 8px; padding: 10px 4px; font-size: 15px; font-weight: bold;
+      cursor: pointer; transition: background 0.15s; margin: 0;
+      width: auto !important; box-sizing: border-box;
+    }
+    .mode-btn:hover { background: #666; }
+    .mode-btn.active-mode { background: #24af24; }
+    .mode-btn.active-mode:hover { background: #1a8f1a; }
     button.info-btn {
       display: inline-flex !important; align-items: center; justify-content: center;
       width: 22px !important; height: 22px !important;
@@ -144,6 +153,18 @@
 
   <!-- ── Базовый блок (любая прошивка) ── -->
   <div id="basicSection" class="section">
+
+    <!-- Режимы -->
+    <div class="card" id="modesCard">
+      <div style="display:flex; gap:6px; margin-bottom:8px;">
+        <button class="mode-btn active-mode" data-mode="0">1</button>
+        <button class="mode-btn" data-mode="1">2</button>
+        <button class="mode-btn" data-mode="2">3</button>
+        <button class="mode-btn" data-mode="3">4</button>
+        <button class="mode-btn" data-mode="4">5</button>
+      </div>
+      <button id="saveModeBtn" class="button-full" style="background:#2a86d6;">Save to Mode <span id="saveModeNum">1</span></button>
+    </div>
 
     <!-- График -->
     <div class="card">
@@ -436,6 +457,8 @@
   const UUID_FW_SNAP_BOOST    = '19b10013-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_SNAP_THR      = '19b10014-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_SNAP_FALL     = '19b10015-e8f2-537e-4f6c-d104768a1214';
+  const UUID_ACTIVE_MODE      = '19b10030-e8f2-537e-4f6c-d104768a1214';
+  const UUID_SAVE_PRESET      = '19b10031-e8f2-537e-4f6c-d104768a1214';
   const UUID_FW_VERSION       = '19b10020-e8f2-537e-4f6c-d104768a1214';
   const UUID_OTA_CTRL         = '19b10021-e8f2-537e-4f6c-d104768a1214';
   const UUID_OTA_DATA         = '19b10022-e8f2-537e-4f6c-d104768a1214';
@@ -467,6 +490,47 @@
   let charEmergency = null;
   let emergencyActive = false;
   let charFW = {};
+  let charActiveMode = null, charSavePreset = null;
+  let currentMode = 0;
+
+  function updateModeButtons(mode) {
+    currentMode = mode;
+    document.querySelectorAll('.mode-btn').forEach(btn => {
+      btn.classList.toggle('active-mode', parseInt(btn.dataset.mode) === mode);
+    });
+    document.getElementById('saveModeNum').textContent = mode + 1;
+  }
+
+  document.querySelectorAll('.mode-btn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const mode = parseInt(btn.dataset.mode);
+      if (!charActiveMode) { updateModeButtons(mode); return; }
+      try {
+        await q.run(() => charActiveMode.writeValue(new Uint8Array([mode])));
+        updateModeButtons(mode);
+        await new Promise(r => setTimeout(r, 300));
+        try { await loadFWSliders(); } catch(e) {}
+        try { await fetchChartFromBle(); } catch(e) {}
+      } catch(e) { console.error('mode switch:', e); }
+    });
+  });
+
+  document.getElementById('saveModeBtn').addEventListener('click', async () => {
+    if (!charSavePreset) return;
+    const btn = document.getElementById('saveModeBtn');
+    btn.disabled = true;
+    try {
+      await q.run(() => charSavePreset.writeValue(new Uint8Array([currentMode])));
+      btn.textContent = '✓ Saved!';
+      setTimeout(() => {
+        btn.textContent = 'Save to Mode ' + (currentMode + 1);
+        btn.disabled = false;
+      }, 1500);
+    } catch(e) {
+      btn.disabled = false;
+      console.error('save preset:', e);
+    }
+  });
   let bikeLockStatus = false;
   let charFwVersion = null, charOtaCtrl = null, charOtaData = null;
 
@@ -477,6 +541,11 @@
   }
 
   function show(id) { document.getElementById(id).style.display = 'block'; }
+
+  // TODO: убрать когда не нужно — показываем всё без BLE для предпросмотра
+  window.addEventListener('load', () => {
+    ['basicSection','emergencySection','flywheelSection','otaSection'].forEach(show);
+  });
 
   function updateSliderBg(el, color = '#2a86d6') {
     const pct = (el.value - el.min) / (el.max - el.min) * 100;
@@ -869,7 +938,9 @@
         charFW['fw_snapFall']      = await tryGetChar(UUID_FW_SNAP_FALL);
       }
 
-      charFwVersion = await tryGetChar(UUID_FW_VERSION);
+      charActiveMode  = await tryGetChar(UUID_ACTIVE_MODE);
+      charSavePreset  = await tryGetChar(UUID_SAVE_PRESET);
+      charFwVersion   = await tryGetChar(UUID_FW_VERSION);
       charOtaCtrl   = await tryGetChar(UUID_OTA_CTRL);
       charOtaData   = await tryGetChar(UUID_OTA_DATA);
 
@@ -896,6 +967,12 @@
       if (charEmergency)           { try { await fetchEmergencyMode();      } catch(e) { console.error('emergency:', e); } }
       if (charACoef1)              { try { await loadLegacySlidersFromBle();} catch(e) { console.error('legacy:', e); } }
       if (charFW['fw_riseLoaded']) { try { await loadFWSliders();           } catch(e) { console.error('fw:', e); } }
+      if (charActiveMode) {
+        try {
+          const v = await q.run(() => charActiveMode.readValue());
+          updateModeButtons(v.getUint8(0));
+        } catch(e) { console.error('activeMode:', e); }
+      }
       if (charFwVersion) {
         try {
           const ver = await q.run(() => charFwVersion.readValue());
