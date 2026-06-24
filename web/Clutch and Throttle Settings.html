@@ -1033,18 +1033,25 @@
       if (!asset) continue;
       const ver = rel.body.trim() || rel.tag_name.replace(/^v/, '');
       const opt = document.createElement('option');
-      opt.value = asset.id;
+      opt.value = first
+        ? 'local:firmware_' + detectedBoard.toLowerCase() + '.bin'
+        : 'id:' + asset.id;
       opt.textContent = ver + (first ? ' (latest)' : '');
       selectEl.appendChild(opt);
       first = false;
     }
   }
 
-  async function downloadFwAsset(assetId) {
-    const resp = await fetch(
-      `https://api.github.com/repos/${GH_REPO}/releases/assets/${assetId}`,
-      { headers: { Accept: 'application/octet-stream' } }
-    );
+  async function downloadFwAsset(val) {
+    let url, opts = {};
+    if (val.startsWith('local:')) {
+      url = val.slice(6) + '?_=' + Date.now();
+    } else {
+      const id = val.slice(3);
+      url = `https://api.github.com/repos/${GH_REPO}/releases/assets/${id}`;
+      opts = { headers: { Accept: 'application/octet-stream' } };
+    }
+    const resp = await fetch(url, opts);
     if (!resp.ok) throw new Error('Download error: ' + resp.status);
     return new Uint8Array(await resp.arrayBuffer());
   }
