@@ -9,6 +9,7 @@
 #include <InterpolationLib.h>
 #include <Adafruit_MCP4725.h>
 #include <Update.h>
+#include "clutch_types.h"
 
 #define FW_VERSION_BASE "2.8.0"
 #ifdef CONFIG_IDF_TARGET_ESP32S3
@@ -171,12 +172,7 @@ void readArrayFromNVS(const char* key, double* array, size_t size) {
 }
 
 // ── Flywheel NVS ──
-struct FlywheelParams {
-  float riseLoaded, fallLoaded, riseUnloaded, fallUnloaded;
-  float hangDuration, hangThreshold;
-  float snapBoost, snapDuration;
-  float snapThreshold;
-};
+uint8_t activeMode = 0;
 
 void saveFlywheelParams() {
   FlywheelParams p = { riseLoaded, fallLoaded, riseUnloaded, fallUnloaded,
@@ -211,13 +207,15 @@ void loadFlywheelParams() {
 }
 
 // ── Presets (5 режимов) ──
-uint8_t activeMode = 0;
+volatile bool presetLoading = false;
 
-struct Preset {
-  FlywheelParams fw;
-  double coef1[11];
-  double coef2[11];
-};
+Preset makeDefaultPreset() {
+  Preset p;
+  p.fw = { 250.0f, 250.0f, 500.0f, 500.0f, 500.0f, 15.0f, 1.32f, 500.0f, 378.0f };
+  memcpy(p.coef1, defaultcoefficients1, sizeof(p.coef1));
+  memcpy(p.coef2, defaultcoefficients2, sizeof(p.coef2));
+  return p;
+}
 
 void applyPreset(const Preset& p) {
   riseLoaded = p.fw.riseLoaded; fallLoaded = p.fw.fallLoaded;
@@ -230,6 +228,7 @@ void applyPreset(const Preset& p) {
 }
 
 void savePreset(uint8_t slot) {
+  if (presetLoading) return;
   char key[10]; snprintf(key, sizeof(key), "preset%d", slot);
   Preset p;
   p.fw = { riseLoaded, fallLoaded, riseUnloaded, fallUnloaded,
@@ -245,6 +244,7 @@ void savePreset(uint8_t slot) {
 }
 
 bool loadPreset(uint8_t slot) {
+  presetLoading = true;
   char key[10]; snprintf(key, sizeof(key), "preset%d", slot);
   Preset p;
   nvs_handle_t h;
@@ -254,14 +254,14 @@ bool loadPreset(uint8_t slot) {
     nvs_close(h);
     if (err == ESP_OK) {
       applyPreset(p);
-      saveFlywheelParams();
-      writeArrayToNVS("coefficients1", coefficients1, 11);
-      writeArrayToNVS("coefficients2", coefficients2, 11);
+      presetLoading = false;
       Serial.printf("[NVS] Preset %d loaded.\n", slot);
       return true;
     }
   }
-  Serial.printf("[NVS] Preset %d not found.\n", slot);
+  Serial.printf("[NVS] Preset %d not found, loading defaults.\n", slot);
+  applyPreset(makeDefaultPreset());
+  presetLoading = false;
   return false;
 }
 
@@ -351,14 +351,13 @@ class CoefficientsCallbacks : public BLECharacteristicCallbacks {
   void onWrite(BLECharacteristic* c) override {
     if (c->getLength() != N * sizeof(double)) return;
     memcpy(buf, c->getData(), N * sizeof(double));
-    writeArrayToNVS("coefficients1", buf,     H);
-    writeArrayToNVS("coefficients2", buf + H, H);
     memcpy(coefficients1, buf,     H * sizeof(double));
     memcpy(coefficients2, buf + H, H * sizeof(double));
+    savePreset(activeMode);
   }
   void onRead(BLECharacteristic* c) override {
-    readArrayFromNVS("coefficients1", buf,     H);
-    readArrayFromNVS("coefficients2", buf + H, H);
+    memcpy(buf,     coefficients1, H * sizeof(double));
+    memcpy(buf + H, coefficients2, H * sizeof(double));
     c->setValue((uint8_t*)buf, N * sizeof(double));
   }
 };
@@ -402,7 +401,7 @@ public:
   void onWrite(BLECharacteristic* c) override {
     if (c->getLength() != sizeof(float)) return;
     *param = *((float*)c->getData());
-    saveFlywheelParams();
+    savePreset(activeMode);
     Serial.printf("[BLE] Flywheel param updated: %.2f\n", *param);
   }
   void onRead(BLECharacteristic* c) override {
@@ -487,6 +486,7 @@ void setup() {
   initFilters();
   loadFlywheelParams();
   activeMode = (uint8_t)constrain(readIntFromNVS("activeMode"), 0, 4);
+  loadPreset(activeMode);
   loadEmergencyMode();
   loadDefaultCoefficientsIfNeeded();
 
