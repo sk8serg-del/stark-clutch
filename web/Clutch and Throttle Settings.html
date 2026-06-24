@@ -1033,11 +1033,20 @@
       if (!asset) continue;
       const ver = rel.body.trim() || rel.tag_name.replace(/^v/, '');
       const opt = document.createElement('option');
-      opt.value = asset.browser_download_url;
+      opt.value = asset.id;
       opt.textContent = ver + (first ? ' (latest)' : '');
       selectEl.appendChild(opt);
       first = false;
     }
+  }
+
+  async function downloadFwAsset(assetId) {
+    const resp = await fetch(
+      `https://api.github.com/repos/${GH_REPO}/releases/assets/${assetId}`,
+      { headers: { Accept: 'application/octet-stream' } }
+    );
+    if (!resp.ok) throw new Error('Download error: ' + resp.status);
+    return new Uint8Array(await resp.arrayBuffer());
   }
 
   async function flashFirmware(data) {
@@ -1135,11 +1144,8 @@
     btn.disabled = true;
     try {
       const sel = document.getElementById('otaVersionSelect');
-      const url = sel.value || getFwBinUrl();
       status.textContent = 'Downloading firmware...';
-      const resp = await fetch(url + '?_=' + Date.now());
-      if (!resp.ok) throw new Error('Download error: ' + resp.status);
-      const data = new Uint8Array(await resp.arrayBuffer());
+      const data = await downloadFwAsset(sel.value);
       status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB, flashing over BLE...`;
       await flashFirmware(data);
     } catch(e) {
@@ -1272,11 +1278,8 @@
     bar.value = 0; pct.textContent = '0%';
     try {
       const sel = document.getElementById('usbVersionSelect');
-      const url = sel.value || getFwBinUrl();
       status.textContent = 'Downloading firmware...';
-      const r = await fetch(url + '?_=' + Date.now());
-      if (!r.ok) throw new Error('Download error: ' + r.status);
-      const data = new Uint8Array(await r.arrayBuffer());
+      const data = await downloadFwAsset(sel.value);
       await doUsbFlash(data, status, bar, pct);
     } catch(e) {
       status.textContent = '✗ ' + e.message;
