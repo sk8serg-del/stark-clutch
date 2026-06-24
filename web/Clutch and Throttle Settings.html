@@ -11,6 +11,8 @@
     h2 { text-align: center; }
     h3 { text-align: center; font-size: 20px; }
     .container { padding: 10px; max-width: 800px; margin: 0 auto; }
+    #pageContent { transition: opacity 0.25s ease; }
+    #pageContent.mode-switching { opacity: 0.15; }
     .connectionContainer { display: flex; justify-content: center; gap: 10px; margin: 10px 0; }
     button {
       padding: 10px 20px; font-size: 16px; background-color: #4CAF50;
@@ -144,6 +146,8 @@
   </div>
   <p>State: <strong><span id="bleState" style="color:#d13a30;">Disconnected</span></strong></p>
 
+  <div id="pageContent">
+
   <!-- ── Блок Lock Bike (появляется если найдена характеристика 0010) ── -->
   <div id="bikeLockSection" class="section">
     <div class="card">
@@ -156,14 +160,13 @@
 
     <!-- Режимы -->
     <div class="card" id="modesCard">
-      <div style="display:flex; gap:6px; margin-bottom:8px;">
+      <div style="display:flex; gap:6px;">
         <button class="mode-btn active-mode" data-mode="0">1</button>
         <button class="mode-btn" data-mode="1">2</button>
         <button class="mode-btn" data-mode="2">3</button>
         <button class="mode-btn" data-mode="3">4</button>
         <button class="mode-btn" data-mode="4">5</button>
       </div>
-      <button id="saveModeBtn" class="button-full" style="background:#2a86d6;">Save to Mode <span id="saveModeNum">1</span></button>
     </div>
 
     <!-- График -->
@@ -395,6 +398,8 @@
     </div>
   </div>
 
+  </div><!-- /pageContent -->
+
 </div><!-- /container -->
 
 <script src="./Clutch and Throttle Settings_files/chart.js.download"></script>
@@ -498,7 +503,6 @@
     document.querySelectorAll('.mode-btn').forEach(btn => {
       btn.classList.toggle('active-mode', parseInt(btn.dataset.mode) === mode);
     });
-    document.getElementById('saveModeNum').textContent = mode + 1;
   }
 
   document.querySelectorAll('.mode-btn').forEach(btn => {
@@ -506,31 +510,21 @@
       const mode = parseInt(btn.dataset.mode);
       if (!charActiveMode) { updateModeButtons(mode); return; }
       try {
+        const content = document.getElementById('pageContent');
+        content.classList.add('mode-switching');
         await q.run(() => charActiveMode.writeValue(new Uint8Array([mode])));
         updateModeButtons(mode);
-        await new Promise(r => setTimeout(r, 300));
-        try { await loadFWSliders(); } catch(e) {}
-        try { await fetchChartFromBle(); } catch(e) {}
-      } catch(e) { console.error('mode switch:', e); }
+        await new Promise(r => setTimeout(r, 600));
+        try { await loadFWSliders(); } catch(e) { console.error('loadFWSliders:', e); }
+        try { await fetchChartFromBle(); } catch(e) { console.error('fetchChartFromBle:', e); }
+        content.classList.remove('mode-switching');
+      } catch(e) {
+        document.getElementById('pageContent').classList.remove('mode-switching');
+        console.error('mode switch:', e);
+      }
     });
   });
 
-  document.getElementById('saveModeBtn').addEventListener('click', async () => {
-    if (!charSavePreset) return;
-    const btn = document.getElementById('saveModeBtn');
-    btn.disabled = true;
-    try {
-      await q.run(() => charSavePreset.writeValue(new Uint8Array([currentMode])));
-      btn.textContent = '✓ Saved!';
-      setTimeout(() => {
-        btn.textContent = 'Save to Mode ' + (currentMode + 1);
-        btn.disabled = false;
-      }, 1500);
-    } catch(e) {
-      btn.disabled = false;
-      console.error('save preset:', e);
-    }
-  });
   let bikeLockStatus = false;
   let charFwVersion = null, charOtaCtrl = null, charOtaData = null;
 
@@ -696,17 +690,22 @@
       onDragEnd: () => {
         localStorage.setItem('chartDataClutch', JSON.stringify(myChart.data.datasets[0].data));
         localStorage.setItem('chartDataGas',    JSON.stringify(myChart.data.datasets[1].data));
+        if (charCoefs) sendChartToBle();
       }
     };
   });
 
   async function fetchChartFromBle() {
     const val = await q.run(() => charCoefs.readValue());
-    const arr = new Float64Array(val.buffer);
+    const arr = new Float64Array(val.buffer, val.byteOffset, val.byteLength / 8);
     if (arr.length === 22) {
-      myChart.data.datasets[0].data = Array.from(arr).slice(0,11).map((y,i) => ({ x:i*10, y }));
-      myChart.data.datasets[1].data = Array.from(arr).slice(11,22).map((y,i) => ({ x:i*10, y }));
-      myChart.update();
+      const d0 = Array.from(arr).slice(0,11).map((y,i) => ({ x:i*10, y }));
+      const d1 = Array.from(arr).slice(11,22).map((y,i) => ({ x:i*10, y }));
+      myChart.data.datasets[0].data = d0;
+      myChart.data.datasets[1].data = d1;
+      localStorage.setItem('chartDataClutch', JSON.stringify(d0));
+      localStorage.setItem('chartDataGas',    JSON.stringify(d1));
+      myChart.update('none');
     }
   }
 
