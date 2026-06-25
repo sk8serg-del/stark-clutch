@@ -217,9 +217,8 @@
       await port.setSignals({ requestToSend: false, dataTerminalReady: false });
       out.textContent = 'Resetting...';
 
-      const decoder = new TextDecoderStream();
-      port.readable.pipeTo(decoder.writable).catch(() => {});
-      reader = decoder.readable.getReader();
+      reader = port.readable.getReader();
+      const textDecoder = new TextDecoder();
 
       let buf = '';
       const timeout = setTimeout(() => { reader.cancel(); }, 8000);
@@ -227,7 +226,7 @@
       while (true) {
         const { value, done } = await reader.read();
         if (done) break;
-        buf += value;
+        buf += textDecoder.decode(value, { stream: true });
 
         // ищем версию в boot сообщении: [OK] Stark Clutch v2.8.1-C3 ready.
         const okMatch = buf.match(/\[OK\] Stark Clutch (v[\w.\-]+) ready/);
@@ -245,8 +244,8 @@
       if (!e.message.includes('cancelled')) out.textContent = '✗ ' + e.message;
       else if (!out.textContent.startsWith('Firmware')) out.textContent = '✗ Timeout — no response';
     } finally {
-      try { reader && await reader.cancel(); } catch(e) {}
-      try { port && await port.close(); } catch(e) {}
+      try { await reader.cancel(); reader.releaseLock(); } catch(e) {}
+      try { await port.close(); } catch(e) {}
       btn.disabled = false;
     }
   });
