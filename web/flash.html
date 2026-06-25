@@ -211,7 +211,11 @@
     try {
       port = await navigator.serial.requestPort();
       await port.open({ baudRate: 115200 });
-      out.textContent += 'Port open — press Reset on device\n';
+      // автоматический сброс через RTS → EN pin
+      await port.setSignals({ requestToSend: true,  dataTerminalReady: false });
+      await new Promise(r => setTimeout(r, 100));
+      await port.setSignals({ requestToSend: false, dataTerminalReady: false });
+      out.textContent += 'Resetting device...\n';
 
       const decoder = new TextDecoderStream();
       port.readable.pipeTo(decoder.writable).catch(() => {});
