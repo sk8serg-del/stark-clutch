@@ -27,6 +27,15 @@
     #progressWrap { display: none; }
     .version-line { text-align: center; font-size: 14px; margin: 0 0 14px; color: #555; }
     .version-line b { color: #4caf50; }
+    .btn-read { background: #2a86d6; }
+    .btn-read:hover { background: #1a6ab6; }
+    #serialOut {
+      display: none; background: #1e1e1e; color: #d4d4d4;
+      font-family: monospace; font-size: 12px;
+      padding: 10px; border-radius: 6px; margin-top: 10px;
+      max-height: 160px; overflow-y: auto; white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -51,6 +60,11 @@
     <button class="btn btn-file" id="flashFileBtn">Flash from File</button>
 
     <p class="note">Web Serial API &middot; hold BOOT button when prompted</p>
+
+    <hr class="divider">
+    <button class="btn btn-read" id="readVerBtn">Read Version from Device</button>
+    <p class="note">Connect device, press Read, then press Reset button on board</p>
+    <div id="serialOut"></div>
 
     <div id="progressWrap">
       <hr class="divider">
@@ -182,6 +196,48 @@
     withBtn('flashFileBtn', async () => {
       await doFlash(new Uint8Array(await file.arrayBuffer()));
     });
+  });
+
+  document.getElementById('readVerBtn').addEventListener('click', async () => {
+    const btn = document.getElementById('readVerBtn');
+    const out = document.getElementById('serialOut');
+    if (!('serial' in navigator)) { alert('Web Serial not supported — use Chrome or Edge'); return; }
+
+    btn.disabled = true;
+    out.style.display = 'block';
+    out.textContent = 'Select port...\n';
+
+    let port, reader;
+    try {
+      port = await navigator.serial.requestPort();
+      await port.open({ baudRate: 115200 });
+      out.textContent += 'Port open — press Reset on device\n';
+
+      const decoder = new TextDecoderStream();
+      port.readable.pipeTo(decoder.writable).catch(() => {});
+      reader = decoder.readable.getReader();
+
+      let buf = '';
+      const timeout = setTimeout(() => { reader.cancel(); }, 8000);
+
+      while (true) {
+        const { value, done } = await reader.read();
+        if (done) break;
+        buf += value;
+        out.textContent = buf;
+        out.scrollTop = out.scrollHeight;
+        if (buf.includes('[OK]') && buf.includes('ready')) {
+          clearTimeout(timeout);
+          break;
+        }
+      }
+    } catch(e) {
+      if (!e.message.includes('cancelled')) out.textContent += '\n✗ ' + e.message;
+    } finally {
+      try { reader && await reader.cancel(); } catch(e) {}
+      try { port && await port.close(); } catch(e) {}
+      btn.disabled = false;
+    }
   });
 </script>
 </body>
