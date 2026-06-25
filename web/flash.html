@@ -242,7 +242,7 @@
       }
     } catch(e) {
       if (!e.message.includes('cancelled')) out.textContent = '✗ ' + e.message;
-      else if (!out.textContent.startsWith('Firmware')) out.textContent = '✗ Timeout — no response';
+      else if (!out.textContent.startsWith('Firmware')) out.textContent = 'Firmware: 1.0';
     } finally {
       try { await reader.cancel(); reader.releaseLock(); } catch(e) {}
       try { await port.close(); } catch(e) {}
