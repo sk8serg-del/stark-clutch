@@ -391,11 +391,6 @@
         </div>
       </div>
 
-      <hr style="margin:14px 0 10px; border:none; border-top:1px solid #eee;">
-      <p style="font-size:13px; color:#aaa; margin:0 0 4px; text-align:center;">or flash from file manually</p>
-      <input type="file" id="otaFile" accept=".bin"
-             style="display:block; margin:4px 0; font-size:14px; width:100%; box-sizing:border-box;">
-      <button id="otaFlashBtn" class="button-full">Flash from File</button>
       <p id="otaStatusMsg" style="font-size:13px; color:#888; margin:4px 0; text-align:center; min-height:18px;"></p>
     </div>
   </div>
@@ -1315,21 +1310,6 @@
     } finally { btn.disabled = false; }
   });
 
-  // ── Flash from file ──
-  document.getElementById('otaFlashBtn').addEventListener('click', async () => {
-    const file = document.getElementById('otaFile').files[0];
-    if (!file) { alert('Select a .bin file first'); return; }
-    const btn = document.getElementById('otaFlashBtn');
-    btn.disabled = true;
-    try {
-      await flashFirmware(new Uint8Array(await file.arrayBuffer()));
-    } catch(e) {
-      document.getElementById('otaStatusMsg').textContent = '✗ Error: ' + e.message;
-      console.error('OTA error:', e);
-    } finally {
-      btn.disabled = false;
-    }
-  });
 
   document.getElementById('saveDropdownValue').addEventListener('click', sendChartToBle);
   document.getElementById('loadDropdownValue').addEventListener('click', fetchChartFromBle);
