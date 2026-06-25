@@ -205,7 +205,7 @@
 
     btn.disabled = true;
     out.style.display = 'block';
-    out.textContent = 'Select port...\n';
+    out.textContent = 'Connecting...';
 
     let port, reader;
     try {
@@ -215,7 +215,7 @@
       await port.setSignals({ requestToSend: true,  dataTerminalReady: false });
       await new Promise(r => setTimeout(r, 100));
       await port.setSignals({ requestToSend: false, dataTerminalReady: false });
-      out.textContent += 'Resetting device...\n';
+      out.textContent = 'Resetting...';
 
       const decoder = new TextDecoderStream();
       port.readable.pipeTo(decoder.writable).catch(() => {});
@@ -228,15 +228,22 @@
         const { value, done } = await reader.read();
         if (done) break;
         buf += value;
-        out.textContent = buf;
-        out.scrollTop = out.scrollHeight;
-        if (buf.includes('[OK]') && buf.includes('ready')) {
+
+        // ищем версию в boot сообщении: [OK] Stark Clutch v2.8.1-C3 ready.
+        const okMatch = buf.match(/\[OK\] Stark Clutch (v[\w.\-]+) ready/);
+        if (okMatch) {
           clearTimeout(timeout);
+          out.textContent = 'Firmware: ' + okMatch[1];
           break;
         }
+
+        // запасной вариант — из потока данных: FW:2.8.1-C3
+        const fwMatch = buf.match(/FW:([\w.\-]+)/);
+        if (fwMatch) out.textContent = 'Firmware: ' + fwMatch[1] + ' (reading boot log...)';
       }
     } catch(e) {
-      if (!e.message.includes('cancelled')) out.textContent += '\n✗ ' + e.message;
+      if (!e.message.includes('cancelled')) out.textContent = '✗ ' + e.message;
+      else if (!out.textContent.startsWith('Firmware')) out.textContent = '✗ Timeout — no response';
     } finally {
       try { reader && await reader.cancel(); } catch(e) {}
       try { port && await port.close(); } catch(e) {}
