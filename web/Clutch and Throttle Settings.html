@@ -510,7 +510,7 @@
   document.querySelectorAll('.mode-btn').forEach(btn => {
     btn.addEventListener('click', async () => {
       const mode = parseInt(btn.dataset.mode);
-      if (!charActiveMode) { updateModeButtons(mode); return; }
+      if (!charActiveMode) return;
       try {
         const content = document.getElementById('pageContent');
         content.classList.add('mode-switching');
@@ -521,7 +521,7 @@
         try { await fetchChartFromBle(); } catch(e) { console.error('fetchChartFromBle:', e); }
         content.classList.remove('mode-switching');
       } catch(e) {
-        document.getElementById('pageContent').classList.remove('mode-switching');
+        if (charActiveMode) document.getElementById('pageContent').classList.remove('mode-switching');
         console.error('mode switch:', e);
       }
     });
@@ -540,7 +540,7 @@
 
   // TODO: убрать когда не нужно — показываем всё без BLE для предпросмотра
   window.addEventListener('load', () => {
-    ['basicSection','emergencySection','flywheelSection','otaSection'].forEach(show);
+    ['basicSection','emergencySection','flywheelSection'].forEach(show);
   });
 
   function updateSliderBg(el, color = '#2a86d6') {
@@ -949,13 +949,19 @@
       document.getElementById('bleState').textContent = 'Connected';
       document.getElementById('bleState').style.color = '#24af24';
 
+      // сбрасываем всё что TEMP handler мог показать — показываем только по характеристикам
+      ['basicSection','emergencySection','flywheelSection','legacyFilterSection','bikeLockSection','otaSection'].forEach(id => {
+        document.getElementById(id).style.display = 'none';
+      });
+
       show('basicSection');
       if (charBikeLock)                                    show('bikeLockSection');
       if (charEmergency)                                   show('emergencySection');
       if (charACoef1 && !charFW['fw_riseLoaded'])          show('legacyFilterSection');
       if (charFW['fw_riseLoaded'])                         show('flywheelSection');
-      if (charOtaCtrl)                                     show('otaSection');
-      else                                                 show('usbFlashSection');
+      if (charOtaCtrl) show('otaSection');
+      else             show('usbFlashSection');
+      document.getElementById('modesCard').style.display = charActiveMode ? '' : 'none';
 
       // 3. Подписываемся на уведомления
       charSensor.startNotifications();
@@ -1005,9 +1011,9 @@
     document.getElementById('legacyFilterSection').style.display = 'none';
     document.getElementById('flywheelSection').style.display    = 'none';
     document.getElementById('otaSection').style.display         = 'none';
-    document.getElementById('usbFlashSection').style.display    = 'none';
+    charActiveMode = null; charSavePreset = null; charFW = {}; charEmergency = null; charOtaCtrl = null; charOtaData = null;
     if (gainNode) gainNode.gain.setValueAtTime(0, audioCtx.currentTime);
-    ['basicSection','emergencySection','flywheelSection','otaSection'].forEach(show);
+    ['basicSection','emergencySection','flywheelSection'].forEach(show);
     document.getElementById('pageContent').classList.add('mode-switching');
   });
 
@@ -1027,23 +1033,22 @@
 
   async function populateFwSelect(selectEl, releases) {
     selectEl.innerHTML = '';
-    let first = true;
+    let isLatest = true;
     for (const rel of releases) {
       const asset = rel.assets.find(a => a.name === 'firmware_' + detectedBoard.toLowerCase() + '.bin');
-      if (!asset) continue;
       const ver = rel.body.trim() || rel.tag_name.replace(/^v/, '');
-      const path = first
+      // latest всегда из корня Pages, остальные — из versioned папки
+      const path = isLatest
         ? 'firmware_' + detectedBoard.toLowerCase() + '.bin'
         : 'firmware/v' + ver + '/firmware_' + detectedBoard.toLowerCase() + '.bin';
-      if (!first) {
-        const check = await fetch(path, { method: 'HEAD' }).catch(() => null);
-        if (!check || !check.ok) continue;
-      }
+      isLatest = false;  // только первый релиз — latest
+      if (!asset) continue;
+      const check = await fetch(path, { method: 'HEAD' }).catch(() => null);
+      if (!check || !check.ok) continue;
       const opt = document.createElement('option');
       opt.value = path;
-      opt.textContent = ver + (first ? ' (latest)' : '');
+      opt.textContent = ver + (selectEl.options.length === 0 ? ' (latest)' : '');
       selectEl.appendChild(opt);
-      first = false;
     }
   }
 
@@ -1303,8 +1308,7 @@
     document.getElementById('usbProgressWrap').style.display = 'block';
     bar.value = 0; pct.textContent = '0%';
     try {
-      const eraseNvs = document.getElementById('eraseNvsCheck').checked;
-      await doUsbFlash(new Uint8Array(await file.arrayBuffer()), status, bar, pct, eraseNvs);
+      await doUsbFlash(new Uint8Array(await file.arrayBuffer()), status, bar, pct, false);
     } catch(e) {
       status.textContent = '✗ ' + e.message;
       console.error('USB file flash:', e);

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stark Clutch — Flash Tool</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 20px; }
+    .container { max-width: 500px; margin: 0 auto; }
+    h1 { text-align: center; font-size: 22px; margin-bottom: 4px; }
+    .subtitle { text-align: center; font-size: 13px; color: #aaa; margin-bottom: 20px; }
+    .card { background: white; border-radius: 10px; padding: 20px; box-shadow: 0 1px 4px rgba(0,0,0,0.1); margin-bottom: 12px; }
+    label { display: block; font-size: 13px; font-weight: bold; color: #555; margin-bottom: 6px; }
+    input[type="file"] { display: block; width: 100%; font-size: 14px; margin-bottom: 14px; box-sizing: border-box; }
+    .btn { width: 100%; padding: 12px; font-size: 16px; color: white; border: none; border-radius: 6px; cursor: pointer; margin-bottom: 8px; }
+    .btn-latest  { background: #4caf50; }
+    .btn-latest:hover  { background: #388e3c; }
+    .btn-file    { background: #607d8b; }
+    .btn-file:hover    { background: #546e7a; }
+    .btn:disabled { background: #aaa; cursor: not-allowed; }
+    .note { font-size: 12px; color: #aaa; text-align: center; margin: 4px 0 0; }
+    progress { width: 100%; height: 18px; margin-top: 10px; }
+    #statusMsg { font-size: 13px; color: #555; text-align: center; min-height: 20px; margin-top: 6px; word-break: break-word; }
+    .checkbox-row { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 14px; color: #555; }
+    .checkbox-row input { width: auto; margin: 0; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 14px 0; }
+    #progressWrap { display: none; }
+    .version-line { text-align: center; font-size: 14px; margin: 0 0 14px; color: #555; }
+    .version-line b { color: #4caf50; }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h1>Stark Clutch</h1>
+  <p class="subtitle">USB Flash Tool &middot; Chrome / Edge only</p>
+
+  <div class="card">
+    <p class="version-line">Latest: <b id="latestVer">loading...</b></p>
+
+    <div class="checkbox-row">
+      <input type="checkbox" id="eraseNvsCheck">
+      <span>Erase NVS (reset all settings &amp; calibration)</span>
+    </div>
+
+    <button class="btn btn-latest" id="flashLatestBtn">⬇ Download &amp; Flash Latest</button>
+
+    <hr class="divider">
+
+    <label>or choose .bin file manually</label>
+    <input type="file" id="binFile" accept=".bin">
+    <button class="btn btn-file" id="flashFileBtn">Flash from File</button>
+
+    <p class="note">Web Serial API &middot; hold BOOT button when prompted</p>
+
+    <div id="progressWrap">
+      <hr class="divider">
+      <progress id="progressBar" value="0" max="100"></progress>
+      <p id="progressTxt" style="text-align:center; font-size:13px; margin:4px 0;">0%</p>
+    </div>
+    <p id="statusMsg"></p>
+  </div>
+</div>
+
+<script>
+  let latestVersion = '';
+
+  fetch('firmware_version.txt?_=' + Date.now())
+    .then(r => r.text())
+    .then(t => {
+      latestVersion = t.trim();
+      document.getElementById('latestVer').textContent = latestVersion || '—';
+    })
+    .catch(() => {
+      document.getElementById('latestVer').textContent = '—';
+    });
+
+  async function doFlash(firmwareData) {
+    const status   = document.getElementById('statusMsg');
+    const bar      = document.getElementById('progressBar');
+    const pct      = document.getElementById('progressTxt');
+    const eraseNvs = document.getElementById('eraseNvsCheck').checked;
+
+    document.getElementById('progressWrap').style.display = 'block';
+    bar.value = 0; pct.textContent = '0%'; status.textContent = '';
+
+    if (!('serial' in navigator)) throw new Error('Web Serial not supported — use Chrome or Edge');
+
+    let binaryStr = '';
+    for (let i = 0; i < firmwareData.length; i += 0x8000)
+      binaryStr += String.fromCharCode.apply(null, firmwareData.subarray(i, i + 0x8000));
+
+    status.textContent = 'Loading flash tool...';
+    if (typeof globalThis.Buffer === 'undefined') {
+      const { Buffer } = await import('https://esm.run/buffer@6.0.3');
+      globalThis.Buffer = Buffer;
+    }
+    const mod = await import('https://cdn.jsdelivr.net/npm/esptool-js@0.4.3/bundle.js');
+    const ESPLoader = mod.ESPLoader ?? mod.default?.ESPLoader;
+    const Transport  = mod.Transport  ?? mod.default?.Transport;
+    if (!ESPLoader || !Transport) throw new Error('esptool-js: ESPLoader/Transport not found');
+
+    const terminal = {
+      clean: () => {},
+      writeLine: (m) => { console.log('[esptool]', m); status.textContent = m; },
+      write:     (m) => { console.log('[esptool]', m); }
+    };
+
+    status.textContent = 'Select USB port — hold BOOT button on device...';
+    const port = await navigator.serial.requestPort();
+    const transport = new Transport(port, true);
+
+    let esploader;
+    try      { esploader = new ESPLoader({ transport, baudrate: 460800, terminal }); }
+    catch(e) { esploader = new ESPLoader(transport, 460800, terminal); }
+
+    status.textContent = 'Connecting...';
+    const chip = typeof esploader.main === 'function'
+      ? await esploader.main()
+      : await esploader.main_fn();
+
+    const fileArray = [];
+    if (eraseNvs) {
+      status.textContent = 'Erasing NVS...';
+      const nvsBlank = new Uint8Array(0x5000).fill(0xFF);
+      let nvsStr = '';
+      for (let i = 0; i < nvsBlank.length; i += 0x8000)
+        nvsStr += String.fromCharCode.apply(null, nvsBlank.subarray(i, i + 0x8000));
+      fileArray.push({ data: nvsStr, address: 0x9000 });
+    }
+    fileArray.push({ data: binaryStr, address: 0x10000 });
+
+    status.textContent = `${chip} — writing...`;
+    await esploader.writeFlash({
+      fileArray,
+      flashSize: 'keep', flashMode: 'keep', flashFreq: 'keep',
+      eraseAll: false, compress: true,
+      reportProgress: (idx, written, total) => {
+        const p = Math.round(written / total * 100);
+        bar.value = p;
+        pct.textContent = `${p}%  ·  ${(written/1024).toFixed(0)} / ${(total/1024).toFixed(0)} KB`;
+      }
+    });
+
+    await esploader.hardReset();
+    await transport.disconnect();
+    bar.value = 100; pct.textContent = '100%';
+    status.textContent = '✓ Done! Device rebooting...';
+  }
+
+  async function withBtn(btnId, fn) {
+    const btn = document.getElementById(btnId);
+    btn.disabled = true;
+    document.getElementById('flashLatestBtn').disabled = true;
+    document.getElementById('flashFileBtn').disabled = true;
+    try {
+      await fn();
+    } catch(e) {
+      document.getElementById('statusMsg').textContent = '✗ ' + e.message;
+      console.error(e);
+    } finally {
+      btn.disabled = false;
+      document.getElementById('flashLatestBtn').disabled = false;
+      document.getElementById('flashFileBtn').disabled = false;
+    }
+  }
+
+  document.getElementById('flashLatestBtn').addEventListener('click', () => {
+    withBtn('flashLatestBtn', async () => {
+      const status = document.getElementById('statusMsg');
+      status.textContent = 'Downloading firmware...';
+      const resp = await fetch('firmware_c3.bin?_=' + Date.now());
+      if (!resp.ok) throw new Error('Download failed: ' + resp.status);
+      const data = new Uint8Array(await resp.arrayBuffer());
+      status.textContent = `Downloaded ${(data.byteLength / 1024).toFixed(0)} KB`;
+      await doFlash(data);
+    });
+  });
+
+  document.getElementById('flashFileBtn').addEventListener('click', () => {
+    const file = document.getElementById('binFile').files[0];
+    if (!file) { alert('Select a .bin file first'); return; }
+    withBtn('flashFileBtn', async () => {
+      await doFlash(new Uint8Array(await file.arrayBuffer()));
+    });
+  });
+</script>
+</body>
+</html>
