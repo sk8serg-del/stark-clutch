@@ -959,7 +959,7 @@
     const prsA0 = parseFloat(parts[1]);
     const relA0 = parseFloat(parts[2]);
     sensorPctA1 = Math.max(0, Math.min(100, (curA1 - relA1) / (prsA1 - relA1) * 100));
-    sensorPctA0 = 100 - Math.max(0, Math.min(100, (curA0 - relA0) / (prsA0 - relA0) * 100));
+    sensorPctA0 = Math.max(0, Math.min(100, (curA0 - relA0) / (prsA0 - relA0) * 100));
     if (myChart) myChart.update('none');
   }
 
