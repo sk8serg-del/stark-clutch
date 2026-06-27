@@ -660,13 +660,15 @@
       const ptsCl = chart.getDatasetMeta(0).data;
       if (ptsCl && ptsCl.length) {
         const xT = area.left + sensorPctA0 / 100 * areaW;
+        const areaH = area.bottom - area.top;
+        let yAtCross = null;
         ctx.beginPath();
         ctx.moveTo(area.left, area.top);
         for (let i = 0; i < ptsCl.length; i++) {
           const px = ptsCl[i].x, py = ptsCl[i].y;
-          if (px <= xT) { ctx.lineTo(px, py); }
+          if (px <= xT) { ctx.lineTo(px, py); yAtCross = py; }
           else {
-            if (i > 0) { const pp = ptsCl[i-1], f = (xT-pp.x)/(px-pp.x); ctx.lineTo(xT, pp.y+(py-pp.y)*f); }
+            if (i > 0) { const pp = ptsCl[i-1], f = (xT-pp.x)/(px-pp.x); yAtCross = pp.y+(py-pp.y)*f; ctx.lineTo(xT, yAtCross); }
             break;
           }
         }
@@ -674,19 +676,28 @@
         ctx.closePath();
         ctx.fillStyle = 'rgba(42, 134, 214, 0.28)';
         ctx.fill();
+        if (yAtCross !== null) {
+          const yData = Math.round(100 - (yAtCross - area.top) / areaH * 100);
+          ctx.beginPath(); ctx.arc(xT, yAtCross, 4, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(42, 134, 214, 0.9)'; ctx.fill();
+          ctx.fillStyle = '#1a6bb5'; ctx.font = 'bold 12px Arial';
+          ctx.fillText((100 - yData) + '% Power Delivered', xT + 7, yAtCross + 4);
+        }
       }
 
       // Gas (красный): заливка СНИЗУ
       const ptsGs = chart.getDatasetMeta(1).data;
       if (ptsGs && ptsGs.length) {
         const xT = area.left + sensorPctA1 / 100 * areaW;
+        const areaH = area.bottom - area.top;
+        let yAtCross = null;
         ctx.beginPath();
         ctx.moveTo(area.left, area.bottom);
         for (let i = 0; i < ptsGs.length; i++) {
           const px = ptsGs[i].x, py = ptsGs[i].y;
-          if (px <= xT) { ctx.lineTo(px, py); }
+          if (px <= xT) { ctx.lineTo(px, py); yAtCross = py; }
           else {
-            if (i > 0) { const pp = ptsGs[i-1], f = (xT-pp.x)/(px-pp.x); ctx.lineTo(xT, pp.y+(py-pp.y)*f); }
+            if (i > 0) { const pp = ptsGs[i-1], f = (xT-pp.x)/(px-pp.x); yAtCross = pp.y+(py-pp.y)*f; ctx.lineTo(xT, yAtCross); }
             break;
           }
         }
@@ -694,6 +705,13 @@
         ctx.closePath();
         ctx.fillStyle = 'rgba(213, 60, 60, 0.28)';
         ctx.fill();
+        if (yAtCross !== null) {
+          const yData = Math.round(100 - (yAtCross - area.top) / areaH * 100);
+          ctx.beginPath(); ctx.arc(xT, yAtCross, 4, 0, Math.PI*2);
+          ctx.fillStyle = 'rgba(213, 60, 60, 0.9)'; ctx.fill();
+          ctx.fillStyle = '#c0392b'; ctx.font = 'bold 12px Arial';
+          ctx.fillText(yData + '% Throttle', xT + 7, yAtCross + 4);
+        }
       }
 
       ctx.restore();
