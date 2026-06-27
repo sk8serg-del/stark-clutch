@@ -645,65 +645,54 @@
   let sensorPctA0 = 0; // clutch 0-100
   let sensorPctA1 = 0; // gas 0-100
 
-  // Рисует активную заливку следуя форме кривой
+  // Рисует активную заливку по реальным пиксельным координатам кривой (как в CLUTCH_CAN)
   const positionFillPlugin = {
     id: 'positionFill',
     afterDraw(chart) {
       if (!chart.chartArea) return;
-      const ctx    = chart.ctx;
-      const area   = chart.chartArea;
-      const scaleX = chart.scales.x;
-      const scaleY = chart.scales.y;
-
-      function interpY(dsIdx, xPct) {
-        const pts = chart.data.datasets[dsIdx].data;
-        const i = Math.min(Math.floor(xPct / 10), pts.length - 2);
-        const t = (xPct / 10) - i;
-        return pts[i].y + (pts[i + 1].y - pts[i].y) * t;
-      }
+      const ctx  = chart.ctx;
+      const area = chart.chartArea;
+      const areaW = area.right - area.left;
 
       ctx.save();
 
-      // Clutch (синий): заливка СВЕРХУ — полигон: top-left → top-right → вниз по кривой → назад
-      {
-        const xPct = sensorPctA0;
-        const pts  = chart.data.datasets[0].data;
-        const xPx  = scaleX.getPixelForValue(xPct);
-        const yPx  = scaleY.getPixelForValue(interpY(0, xPct));
-        // точки кривой левее текущей позиции
-        const active = pts.filter(p => p.x <= xPct);
-
+      // Clutch (синий): заливка СВЕРХУ
+      const ptsCl = chart.getDatasetMeta(0).data;
+      if (ptsCl && ptsCl.length) {
+        const xT = area.left + sensorPctA0 / 100 * areaW;
         ctx.beginPath();
         ctx.moveTo(area.left, area.top);
-        ctx.lineTo(xPx, area.top);
-        ctx.lineTo(xPx, yPx);
-        // идём по кривой назад от xPct до 0
-        for (let i = active.length - 1; i >= 0; i--) {
-          ctx.lineTo(scaleX.getPixelForValue(active[i].x), scaleY.getPixelForValue(active[i].y));
+        for (let i = 0; i < ptsCl.length; i++) {
+          const px = ptsCl[i].x, py = ptsCl[i].y;
+          if (px <= xT) { ctx.lineTo(px, py); }
+          else {
+            if (i > 0) { const pp = ptsCl[i-1], f = (xT-pp.x)/(px-pp.x); ctx.lineTo(xT, pp.y+(py-pp.y)*f); }
+            break;
+          }
         }
+        ctx.lineTo(xT, area.top);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(42,134,214,0.3)';
+        ctx.fillStyle = 'rgba(42, 134, 214, 0.28)';
         ctx.fill();
       }
 
-      // Gas (красный): заливка СНИЗУ — полигон: по кривой слева → вниз → bottom-left → назад
-      {
-        const xPct = sensorPctA1;
-        const pts  = chart.data.datasets[1].data;
-        const xPx  = scaleX.getPixelForValue(xPct);
-        const yPx  = scaleY.getPixelForValue(interpY(1, xPct));
-        const active = pts.filter(p => p.x <= xPct);
-
+      // Gas (красный): заливка СНИЗУ
+      const ptsGs = chart.getDatasetMeta(1).data;
+      if (ptsGs && ptsGs.length) {
+        const xT = area.left + sensorPctA1 / 100 * areaW;
         ctx.beginPath();
         ctx.moveTo(area.left, area.bottom);
-        // идём по кривой от 0 до xPct
-        for (let i = 0; i < active.length; i++) {
-          ctx.lineTo(scaleX.getPixelForValue(active[i].x), scaleY.getPixelForValue(active[i].y));
+        for (let i = 0; i < ptsGs.length; i++) {
+          const px = ptsGs[i].x, py = ptsGs[i].y;
+          if (px <= xT) { ctx.lineTo(px, py); }
+          else {
+            if (i > 0) { const pp = ptsGs[i-1], f = (xT-pp.x)/(px-pp.x); ctx.lineTo(xT, pp.y+(py-pp.y)*f); }
+            break;
+          }
         }
-        ctx.lineTo(xPx, yPx);
-        ctx.lineTo(xPx, area.bottom);
+        ctx.lineTo(xT, area.bottom);
         ctx.closePath();
-        ctx.fillStyle = 'rgba(220,80,80,0.3)';
+        ctx.fillStyle = 'rgba(213, 60, 60, 0.28)';
         ctx.fill();
       }
 
@@ -728,19 +717,13 @@
           label: 'Clutch',
           data: JSON.parse(localStorage.getItem('chartDataClutch')) ||
                 defaultClutch.map((y,i) => ({ x: i*10, y })),
-          fill: 'end', tension: 0.4, borderWidth: 2, pointHitRadius: 25,
-          borderColor: 'rgba(42,134,214,1)',
-          backgroundColor: 'rgba(42,134,214,0.2)',
-          pointBackgroundColor: 'rgba(42,134,214,1)'
+          fill: 'end', tension: 0.4, borderWidth: 2, pointHitRadius: 25
         },
         {
           label: 'Gas',
           data: JSON.parse(localStorage.getItem('chartDataGas')) ||
                 defaultGas.map((y,i) => ({ x: i*10, y })),
-          fill: 'origin', tension: 0.4, borderWidth: 2, pointHitRadius: 25,
-          borderColor: 'rgba(220,80,80,1)',
-          backgroundColor: 'rgba(220,80,80,0.2)',
-          pointBackgroundColor: 'rgba(220,80,80,1)'
+          fill: true, tension: 0.4, borderWidth: 2, pointHitRadius: 25
         }
       ]
     }
