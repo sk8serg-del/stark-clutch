@@ -100,13 +100,13 @@
       border-radius: 6px; cursor: pointer; font-size: 14px;
     }
     #verticalVoltageLine {
-      position: absolute;
-      width: 2px; background-color: red;
-      transition: left 0.1s ease; z-index: 20; pointer-events: none;
+      position: absolute; left: 0;
+      background-color: rgba(220,80,80,0.18);
+      transition: width 0.1s ease; z-index: 20; pointer-events: none;
     }
     #verticalVoltageLineA0 {
-      position: absolute;
-      width: 2px; background-color: #2a86d6;
+      position: absolute; left: 0;
+      background-color: rgba(42,134,214,0.18);
       transition: left 0.1s ease; z-index: 20; pointer-events: none;
     }
   </style>
@@ -667,13 +667,19 @@
           label: 'Clutch',
           data: JSON.parse(localStorage.getItem('chartDataClutch')) ||
                 defaultClutch.map((y,i) => ({ x: i*10, y })),
-          fill: true, tension: 0.4, borderWidth: 2, pointHitRadius: 25
+          fill: true, tension: 0.4, borderWidth: 2, pointHitRadius: 25,
+          borderColor: 'rgba(42,134,214,1)',
+          backgroundColor: 'rgba(42,134,214,0.25)',
+          pointBackgroundColor: 'rgba(42,134,214,1)'
         },
         {
           label: 'Gas',
           data: JSON.parse(localStorage.getItem('chartDataGas')) ||
                 defaultGas.map((y,i) => ({ x: i*10, y })),
-          fill: true, tension: 0.4, borderWidth: 2, pointHitRadius: 25
+          fill: true, tension: 0.4, borderWidth: 2, pointHitRadius: 25,
+          borderColor: 'rgba(220,80,80,1)',
+          backgroundColor: 'rgba(220,80,80,0.22)',
+          pointBackgroundColor: 'rgba(220,80,80,1)'
         }
       ]
     }
@@ -884,7 +890,8 @@
 
     const pctA1  = Math.max(0, Math.min(100, (curA1 - relA1) / (prsA1 - relA1) * 100));
     const lineA1 = document.getElementById('verticalVoltageLine');
-    lineA1.style.left   = (area.left + pctA1 / 100 * areaW) + 'px';
+    lineA1.style.left   = area.left + 'px';
+    lineA1.style.width  = (pctA1 / 100 * areaW) + 'px';
     lineA1.style.top    = area.top + 'px';
     lineA1.style.height = areaH + 'px';
 
@@ -892,7 +899,8 @@
     const relA0  = parseFloat(parts[2]);
     const pctA0  = 100 - Math.max(0, Math.min(100, (curA0 - relA0) / (prsA0 - relA0) * 100));
     const lineA0 = document.getElementById('verticalVoltageLineA0');
-    lineA0.style.left   = (area.left + pctA0 / 100 * areaW) + 'px';
+    lineA0.style.left   = area.left + 'px';
+    lineA0.style.width  = (pctA0 / 100 * areaW) + 'px';
     lineA0.style.top    = area.top + 'px';
     lineA0.style.height = areaH + 'px';
   }
