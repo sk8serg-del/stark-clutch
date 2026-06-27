@@ -24,7 +24,16 @@
     .button-red:hover { background-color: rgb(255,75,75) !important; }
     .button-full { width: 97%; }
     p { font-size: 18px; text-align: center; }
-    .chart-container { width: 100%; position: relative; }
+    .chart-container { width: 100%; position: relative; height: 370px; }
+    .card-chart { padding: 10px 0; margin: 12px -10px; border-radius: 0; background: white; box-shadow: 0 1px 4px rgba(0,0,0,0.1); }
+    .card-chart .connectionContainer { padding: 0 10px; }
+    @media (max-width: 479px) {
+      .chart-container { height: 225px; }
+    }
+    @media (min-width: 480px) {
+      .card-chart { margin: 12px 0; padding: 15px; border-radius: 10px; }
+      .card-chart .connectionContainer { padding: 0; }
+    }
     .section { display: none; }
     input[type="range"] {
       -webkit-appearance: none; appearance: none;
@@ -161,7 +170,7 @@
     </div>
 
     <!-- График -->
-    <div class="card">
+    <div class="card-chart">
       <div class="chart-container">
         <canvas id="chartJSContainer"></canvas>
         <div id="verticalVoltageLine"></div>
@@ -722,6 +731,7 @@
   const chartCfg = {
     type: 'line',
     options: {
+      maintainAspectRatio: false,
       plugins: { datalabels: { display: false } },
       scales: {
         x: { type: 'linear', min: 0, max: 100, ticks: { display: false }, grid: { display: true } },
