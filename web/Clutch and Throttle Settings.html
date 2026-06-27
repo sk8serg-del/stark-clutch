@@ -665,14 +665,14 @@
 
       ctx.save();
 
-      // Clutch (синий): заливка СНИЗУ
+      // Clutch (синий): заливка СВЕРХУ
       const ptsCl = chart.getDatasetMeta(0).data;
       if (ptsCl && ptsCl.length) {
         const xT = area.left + sensorPctA0 / 100 * areaW;
         const areaH = area.bottom - area.top;
         let yAtCross = null;
         ctx.beginPath();
-        ctx.moveTo(area.left, area.bottom);
+        ctx.moveTo(area.left, area.top);
         for (let i = 0; i < ptsCl.length; i++) {
           const px = ptsCl[i].x, py = ptsCl[i].y;
           if (px <= xT) { ctx.lineTo(px, py); yAtCross = py; }
@@ -681,7 +681,7 @@
             break;
           }
         }
-        ctx.lineTo(xT, area.bottom);
+        ctx.lineTo(xT, area.top);
         ctx.closePath();
         ctx.fillStyle = 'rgba(42, 134, 214, 0.28)';
         ctx.fill();
